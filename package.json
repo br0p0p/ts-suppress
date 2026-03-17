@@ -1,6 +1,9 @@
 {
   "name": "ts-suppress",
   "private": true,
+  "bin": {
+    "ts-suppress": "index.ts"
+  },
   "type": "module",
   "module": "index.ts",
   "scripts": {
@@ -10,8 +13,13 @@
     "lint:fix": "oxlint --fix",
     "prepare": "husky"
   },
+  "dependencies": {
+    "gunshi": "^0.29.3",
+    "ts-morph": "^27.0.2"
+  },
   "devDependencies": {
     "@types/bun": "latest",
+    "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
