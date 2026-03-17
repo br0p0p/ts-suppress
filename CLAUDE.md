@@ -103,3 +103,7 @@ bun --hot ./index.ts
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+
+## CLI Development
+
+When creating command-line interfaces, use the `use-gunshi-cli` skill.
