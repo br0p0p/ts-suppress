@@ -3,8 +3,23 @@
   "version": "0.2.0",
   "description": "Incremental TypeScript strictness adoption via bulk error suppression",
   "keywords": [
-    "tanstack-intent"
+    "migration",
+    "strict",
+    "suppression",
+    "tanstack-intent",
+    "ts-ignore",
+    "typescript"
   ],
+  "homepage": "https://github.com/br0p0p/ts-suppress#readme",
+  "bugs": {
+    "url": "https://github.com/br0p0p/ts-suppress/issues"
+  },
+  "license": "MIT",
+  "author": "br0p0p",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/br0p0p/ts-suppress.git"
+  },
   "bin": {
     "ts-suppress": "dist/cli.js"
   },
@@ -18,6 +33,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "test": "bun test",
     "prepublishOnly": "bun run build",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
