@@ -21,34 +21,44 @@ The `check` command diffs the current diagnostics against the suppression file a
 ## Install
 
 ```bash
-bun install
+bun add -d ts-suppress
 ```
 
 ## Usage
 
-### Initialize
+### `init`
 
 Create an empty `.ts-suppressions.json`:
 
 ```bash
-bunx ts-suppress --init
+bunx ts-suppress init
 ```
 
-### Suppress
+### `suppress`
 
-Generate or update `.ts-suppressions.json` from all current TypeScript errors:
+Snapshot all current TypeScript errors into `.ts-suppressions.json`:
 
 ```bash
 bunx ts-suppress suppress
 ```
 
-### Check
+### `check`
 
 Verify that all errors are suppressed and no suppressions are stale. Exits non-zero on failure — useful in CI:
 
 ```bash
 bunx ts-suppress check
 ```
+
+### `update`
+
+Add new suppressions and remove stale ones in a single pass:
+
+```bash
+bunx ts-suppress update
+```
+
+Also available as `bunx ts-suppress fix`.
 
 ## Typical Workflow
 
@@ -57,3 +67,4 @@ bunx ts-suppress check
 3. Commit `.ts-suppressions.json`
 4. Add `bunx ts-suppress check` to CI
 5. Fix errors over time — `check` will flag stale suppressions as you go
+6. Run `bunx ts-suppress update` to sync the suppression file after fixing errors
