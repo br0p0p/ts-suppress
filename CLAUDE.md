@@ -106,4 +106,4 @@ For more information, read the Bun API docs in `node_modules/bun-types/docs/**.m
 
 ## CLI Development
 
-When creating command-line interfaces, use the `use-gunshi-cli` skill.
+Use `@bomb.sh/args` for argument parsing. Don't use `gunshi`, `commander`, or `yargs`.

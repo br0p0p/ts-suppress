@@ -1,5 +1,3 @@
-// src/commands/check.ts
-import { define } from "gunshi";
 import type { Project } from "ts-morph";
 import { collectDiagnostics } from "../diagnostics.ts";
 import { createProject } from "../project.ts";
@@ -47,15 +45,3 @@ export async function runCheck(
 
   return { exitCode, unsuppressed, stale };
 }
-
-export const checkCommand = define({
-  name: "check",
-  description:
-    "Check for unsuppressed TypeScript errors and stale suppressions (exits non-zero on either)",
-  args: {},
-  run: async (_ctx) => {
-    const { project, projectRoot } = createProject(process.cwd());
-    const { exitCode } = await runCheck(project, projectRoot);
-    if (exitCode !== 0) process.exit(exitCode);
-  },
-});

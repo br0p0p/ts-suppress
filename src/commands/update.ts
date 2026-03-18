@@ -1,14 +1,6 @@
-// src/commands/update.ts
-import { define } from "gunshi";
 import type { Project } from "ts-morph";
 import { collectDiagnostics } from "../diagnostics.ts";
-import { createProject } from "../project.ts";
-import {
-  readSuppressions,
-  writeSuppressions,
-  diffSuppressions,
-  SUPPRESSIONS_FILENAME,
-} from "../suppressions.ts";
+import { readSuppressions, writeSuppressions, diffSuppressions } from "../suppressions.ts";
 import type { Suppression } from "../types.ts";
 
 export interface UpdateResult {
@@ -45,13 +37,3 @@ export async function runUpdate(
 
   return { added, removed, total: current.length };
 }
-
-export const updateCommand = define({
-  name: "update",
-  description: "Add new suppressions and remove stale ones from .ts-suppressions.json",
-  args: {},
-  run: async (_ctx) => {
-    const { project, projectRoot } = createProject(process.cwd());
-    await runUpdate(project, projectRoot);
-  },
-});
