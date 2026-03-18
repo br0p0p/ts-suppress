@@ -1,9 +1,8 @@
-// src/cli.ts
 import { cli, define } from "gunshi";
-import { generate } from "gunshi/generator";
-import { writeSuppressions, SUPPRESSIONS_FILENAME } from "./suppressions.ts";
 import { checkCommand } from "./commands/check.ts";
+import { initCommand } from "./commands/init.ts";
 import { suppressCommand } from "./commands/suppress.ts";
+import { updateCommand } from "./commands/update.ts";
 
 const cliOptions = {
   name: "ts-suppress",
@@ -11,31 +10,34 @@ const cliOptions = {
   description: "Incremental TypeScript strictness adoption via bulk error suppression",
   subCommands: {
     check: checkCommand,
+    init: initCommand,
     suppress: suppressCommand,
+    update: updateCommand,
+    fix: updateCommand,
   },
 } as const;
 
-const mainCommand = define({
+const commands = [
+  ["init", "Create an empty .ts-suppressions.json file"],
+  ["suppress", "Snapshot all current TypeScript errors into .ts-suppressions.json"],
+  ["update", "Add new suppressions and remove stale ones (alias: fix)"],
+  ["check", "Check for unsuppressed errors and stale suppressions"],
+] as const;
+
+function printHelp() {
+  const longest = Math.max(...commands.map(([name]) => name.length));
+  const lines = commands.map(([name, desc]) => `  ${name.padEnd(longest + 4)}${desc}`);
+  console.log(
+    `ts-suppress v${cliOptions.version}\n${cliOptions.description}\n\nCommands:\n${lines.join("\n")}\n\nRun ts-suppress <command> --help for details.`,
+  );
+}
+
+const entry = define({
   name: "ts-suppress",
-  description: "Incremental TypeScript strictness adoption via bulk error suppression",
-  args: {
-    init: {
-      type: "boolean" as const,
-      description: `Create an empty ${SUPPRESSIONS_FILENAME} file`,
-    },
-  },
+  rendering: { header: null },
   run: async (ctx) => {
-    if (ctx.values.init) {
-      await writeSuppressions(process.cwd(), []);
-      console.log(`Created ${SUPPRESSIONS_FILENAME}`);
-      return;
-    }
-    if (ctx.omitted) {
-      // No subcommand given: show full help
-      const help = await generate(null, mainCommand, cliOptions);
-      console.log(help);
-    }
+    if (ctx.omitted) printHelp();
   },
 });
 
-await cli(process.argv.slice(2), mainCommand, cliOptions);
+await cli(process.argv.slice(2), entry, cliOptions);

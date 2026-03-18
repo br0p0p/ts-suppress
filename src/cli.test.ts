@@ -50,19 +50,19 @@ test("--help shows help and exits 0", async () => {
 
 // --- Init ---
 
-test("--init creates empty suppression file", async () => {
-  const { exitCode } = await run(["--init"]);
+test("init creates empty suppression file", async () => {
+  const { exitCode } = await run(["init"]);
   expect(exitCode).toBe(0);
   const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
   const data = JSON.parse(content);
   expect(data.suppressions).toEqual([]);
 });
 
-test("--init overwrites existing suppression file", async () => {
+test("init overwrites existing suppression file", async () => {
   // Create a non-empty file first
   await run(["suppress"]);
   // Then init should overwrite with empty
-  const { exitCode } = await run(["--init"]);
+  const { exitCode } = await run(["init"]);
   expect(exitCode).toBe(0);
   const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
   const data = JSON.parse(content);
@@ -103,7 +103,83 @@ test("check detects stale suppressions and exits 1", async () => {
   expect(stderr).toContain("stale");
 });
 
+// --- Update ---
+
+test("update adds new suppressions and exits 0", async () => {
+  const { exitCode, stdout } = await run(["update"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("Added");
+  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+  const data = JSON.parse(content);
+  expect(data.suppressions.length).toBeGreaterThan(0);
+});
+
+test("update removes stale suppressions", async () => {
+  await run(["suppress"]);
+  // Fix the error so the suppression becomes stale
+  await Bun.write(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
+  const { exitCode, stdout } = await run(["update"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("Removed");
+  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+  const data = JSON.parse(content);
+  expect(data.suppressions).toEqual([]);
+});
+
+test("update reports no changes when already in sync", async () => {
+  await run(["suppress"]);
+  const { exitCode, stdout } = await run(["update"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("Already up to date");
+});
+
+test("check passes after update", async () => {
+  await run(["update"]);
+  const { exitCode } = await run(["check"]);
+  expect(exitCode).toBe(0);
+});
+
+test("fix is an alias for update", async () => {
+  const { exitCode, stdout } = await run(["fix"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("Added");
+  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+  const data = JSON.parse(content);
+  expect(data.suppressions.length).toBeGreaterThan(0);
+});
+
+test("fix produces identical file to update", async () => {
+  const { stdout: updateStdout } = await run(["update"]);
+  const updateContent = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+
+  // Reset by removing the file, then run fix
+  await rm(resolve(tempDir, ".ts-suppressions.json"));
+  const { stdout: fixStdout } = await run(["fix"]);
+  const fixContent = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+
+  expect(fixContent).toBe(updateContent);
+  expect(fixStdout).toBe(updateStdout);
+});
+
 // --- Error handling ---
+
+test("update with missing tsconfig exits 1 with clear error", async () => {
+  const emptyDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-empty-"));
+  try {
+    const { exitCode, stderr } = await run(["update"], emptyDir);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("tsconfig");
+  } finally {
+    await rm(emptyDir, { recursive: true });
+  }
+});
+
+test("update with corrupt suppression JSON exits 1 with clear error", async () => {
+  await Bun.write(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
+  const { exitCode, stderr } = await run(["update"]);
+  expect(exitCode).toBe(1);
+  expect(stderr.length).toBeGreaterThan(0);
+});
 
 test("missing tsconfig exits 1 with clear error", async () => {
   const emptyDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-empty-"));
