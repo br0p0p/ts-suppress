@@ -4,8 +4,8 @@ import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { Project, ScriptTarget } from "ts-morph";
-import { runSuppress } from "./suppress.ts";
-import { readSuppressions } from "../suppressions.ts";
+import { runSuppress } from "./suppress.js";
+import { readSuppressions } from "../suppressions.js";
 
 let tempDir: string;
 

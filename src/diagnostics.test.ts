@@ -1,7 +1,6 @@
-// src/diagnostics.test.ts
 import { test, expect } from "bun:test";
 import { Project, ScriptTarget } from "ts-morph";
-import { collectDiagnostics } from "./diagnostics.ts";
+import { collectDiagnostics } from "./diagnostics.js";
 
 function createInMemoryProject(files: Record<string, string>): Project {
   const project = new Project({

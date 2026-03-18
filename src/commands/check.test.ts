@@ -1,12 +1,11 @@
-// src/commands/check.test.ts
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { Project, ScriptTarget } from "ts-morph";
-import { runCheck } from "./check.ts";
-import { runSuppress } from "./suppress.ts";
-import { writeSuppressions } from "../suppressions.ts";
+import { runCheck } from "./check.js";
+import { runSuppress } from "./suppress.js";
+import { writeSuppressions } from "../suppressions.js";
 
 let tempDir: string;
 

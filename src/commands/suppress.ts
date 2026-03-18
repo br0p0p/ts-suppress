@@ -1,6 +1,6 @@
 import type { Project } from "ts-morph";
-import { collectDiagnostics } from "../diagnostics.ts";
-import { writeSuppressions, SUPPRESSIONS_FILENAME } from "../suppressions.ts";
+import { collectDiagnostics } from "../diagnostics.js";
+import { writeSuppressions, SUPPRESSIONS_FILENAME } from "../suppressions.js";
 
 /**
  * Core logic, extracted for testability.

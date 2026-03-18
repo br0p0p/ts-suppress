@@ -1,6 +1,6 @@
 // src/hash.test.ts
 import { test, expect } from "bun:test";
-import { hashMessage } from "./hash.ts";
+import { hashMessage } from "./hash.js";
 
 test("returns a hex string", () => {
   const result = hashMessage("Type 'string' is not assignable to type 'number'");

@@ -1,11 +1,11 @@
 import { parse } from "@bomb.sh/args";
-import { createProject } from "./project.ts";
-import { runCheck } from "./commands/check.ts";
-import { runInit } from "./commands/init.ts";
-import { runSuppress } from "./commands/suppress.ts";
-import { runUpdate } from "./commands/update.ts";
+import { createProject } from "./project.js";
+import { runCheck } from "./commands/check.js";
+import { runInit } from "./commands/init.js";
+import { runSuppress } from "./commands/suppress.js";
+import { runUpdate } from "./commands/update.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const commands = [
   ["init", "Create an empty .ts-suppressions.json file"],

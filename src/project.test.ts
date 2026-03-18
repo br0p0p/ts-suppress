@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { resolve } from "node:path";
-import { createProject, findTsConfig } from "./project.ts";
+import { createProject, findTsConfig } from "./project.js";
 
 const basicFixture = resolve(import.meta.dir, "../fixtures/basic");
 const nestedFixture = resolve(import.meta.dir, "../fixtures/nested/packages/app");

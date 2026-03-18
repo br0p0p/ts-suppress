@@ -1,9 +1,8 @@
-// src/diagnostics.ts
 import type { Project } from "ts-morph";
 import { relative } from "node:path";
-import { hashMessage } from "./hash.ts";
-import { buildScopePath } from "./scope.ts";
-import type { Suppression } from "./types.ts";
+import { hashMessage } from "./hash.js";
+import { buildScopePath } from "./scope.js";
+import type { Suppression } from "./types.js";
 
 /**
  * Collect all pre-emit diagnostics from a ts-morph Project as Suppression fingerprints.

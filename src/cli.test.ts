@@ -1,7 +1,7 @@
 // src/cli.test.ts
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { resolve } from "node:path";
-import { mkdtemp, rm, cp, readFile } from "node:fs/promises";
+import { mkdtemp, rm, cp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 const CLI = resolve(import.meta.dir, "../index.ts");
@@ -97,7 +97,7 @@ test("check with no suppression file exits 1", async () => {
 test("check detects stale suppressions and exits 1", async () => {
   await run(["suppress"]);
   // Fix the error
-  await Bun.write(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
+  await writeFile(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
   const { exitCode, stderr } = await run(["check"]);
   expect(exitCode).toBe(1);
   expect(stderr).toContain("stale");
@@ -117,7 +117,7 @@ test("update adds new suppressions and exits 0", async () => {
 test("update removes stale suppressions", async () => {
   await run(["suppress"]);
   // Fix the error so the suppression becomes stale
-  await Bun.write(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
+  await writeFile(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
   const { exitCode, stdout } = await run(["update"]);
   expect(exitCode).toBe(0);
   expect(stdout).toContain("Removed");
@@ -175,7 +175,7 @@ test("update with missing tsconfig exits 1 with clear error", async () => {
 });
 
 test("update with corrupt suppression JSON exits 1 with clear error", async () => {
-  await Bun.write(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
+  await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
   const { exitCode, stderr } = await run(["update"]);
   expect(exitCode).toBe(1);
   expect(stderr.length).toBeGreaterThan(0);
@@ -193,7 +193,7 @@ test("missing tsconfig exits 1 with clear error", async () => {
 });
 
 test("corrupt suppression JSON exits 1 with clear error", async () => {
-  await Bun.write(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
+  await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
   const { exitCode, stderr } = await run(["check"]);
   expect(exitCode).toBe(1);
   // Should get a parse error, not a crash

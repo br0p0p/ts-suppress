@@ -1,4 +1,4 @@
-import { writeSuppressions, SUPPRESSIONS_FILENAME } from "../suppressions.ts";
+import { writeSuppressions, SUPPRESSIONS_FILENAME } from "../suppressions.js";
 
 export async function runInit() {
   await writeSuppressions(process.cwd(), []);

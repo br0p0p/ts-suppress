@@ -1,8 +1,7 @@
 import type { Project } from "ts-morph";
-import { collectDiagnostics } from "../diagnostics.ts";
-import { createProject } from "../project.ts";
-import { readSuppressions, diffSuppressions } from "../suppressions.ts";
-import type { Suppression } from "../types.ts";
+import { collectDiagnostics } from "../diagnostics.js";
+import { readSuppressions, diffSuppressions } from "../suppressions.js";
+import type { Suppression } from "../types.js";
 
 export interface CheckResult {
   exitCode: number;

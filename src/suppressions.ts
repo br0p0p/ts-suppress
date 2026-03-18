@@ -1,6 +1,6 @@
-// src/suppressions.ts
+import { readFile, writeFile, access } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Suppression, SuppressionFile } from "./types.ts";
+import type { Suppression, SuppressionFile } from "./types.js";
 
 export const SUPPRESSIONS_FILENAME = ".ts-suppressions.json";
 
@@ -37,11 +37,15 @@ function countByBaseKey(list: Suppression[]): Map<string, number> {
 /** Read suppressions from .ts-suppressions.json in the given directory */
 export async function readSuppressions(projectRoot: string): Promise<Suppression[]> {
   const filePath = resolve(projectRoot, SUPPRESSIONS_FILENAME);
-  const file = Bun.file(filePath);
 
-  if (!(await file.exists())) return [];
+  try {
+    await access(filePath);
+  } catch {
+    return [];
+  }
 
-  const data: SuppressionFile = await file.json();
+  const raw = await readFile(filePath, "utf-8");
+  const data: SuppressionFile = JSON.parse(raw);
   return data.suppressions;
 }
 
@@ -53,7 +57,7 @@ export async function writeSuppressions(
   const filePath = resolve(projectRoot, SUPPRESSIONS_FILENAME);
   const sorted = [...suppressions].sort(compareSuppression);
   const data: SuppressionFile = { suppressions: sorted };
-  await Bun.write(filePath, JSON.stringify(data, null, 2) + "\n");
+  await writeFile(filePath, JSON.stringify(data, null, 2) + "\n");
 }
 
 export interface SuppressionDiff {

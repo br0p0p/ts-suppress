@@ -1,4 +1,3 @@
-// src/suppressions.test.ts
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -8,8 +7,8 @@ import {
   writeSuppressions,
   diffSuppressions,
   SUPPRESSIONS_FILENAME,
-} from "./suppressions.ts";
-import type { Suppression } from "./types.ts";
+} from "./suppressions.js";
+import type { Suppression } from "./types.js";
 
 let tempDir: string;
 
