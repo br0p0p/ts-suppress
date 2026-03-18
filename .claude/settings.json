@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; npx oxfmt \"$f\"; } 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | grep -q '\\.ts-suppressions\\.json' && echo '{\"decision\":\"block\",\"reason\":\"Do not edit .ts-suppressions.json directly — use the suppress or update commands\"}' && exit 1 || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
