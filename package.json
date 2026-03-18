@@ -16,6 +16,7 @@
     "prepublishOnly": "bun run build",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
+    "knip": "knip",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "prepare": "husky",
@@ -27,14 +28,17 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^24",
     "husky": "^9.1.7",
+    "knip": "^5.87.0",
     "lint-staged": "^16.4.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
-    "oxlint-tsgolint": "^0.17.0"
+    "oxlint-tsgolint": "^0.17.0",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": "bun run lint",
