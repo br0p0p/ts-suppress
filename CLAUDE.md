@@ -1,109 +1,56 @@
-Default to using Bun instead of Node.js.
+# ts-suppress
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+CLI tool for incremental TypeScript strictness adoption via bulk error suppression. Captures TS errors into `.ts-suppressions.json` instead of inline `@ts-ignore` comments.
 
-## APIs
+## Commands
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+```bash
+bun run build        # Compile with tsc (tsconfig.build.json)
+bun test             # Run tests (bun:test)
+bun run typecheck    # Type-check without emitting
+bun run lint         # Lint with oxlint
+bun run lint:fix     # Lint and auto-fix
+bun run fmt          # Format with oxfmt
+bun run fmt:check    # Check formatting
+bun run knip         # Find unused exports/dependencies
+```
+
+## Architecture
+
+```
+src/
+  cli.ts              # Entry point, command routing via @bomb.sh/args
+  commands/            # Command implementations (init, suppress, check, update)
+  project.ts           # tsconfig.json discovery, ts-morph project creation
+  diagnostics.ts       # Collects TS pre-emit diagnostics, fingerprints errors
+  suppressions.ts      # Reads/writes .ts-suppressions.json, diff logic
+  scope.ts             # AST traversal for dot-separated scope chains
+  hash.ts              # SHA256 hashing of diagnostic messages
+  types.ts             # Shared interfaces (Suppression, SuppressionFile)
+```
+
+## Key Dependencies
+
+- **ts-morph** — TypeScript AST manipulation and project management
+- **@bomb.sh/args** — CLI argument parsing. Don't use `commander`, `yargs`, or `gunshi`.
+
+## Tooling
+
+Use Bun exclusively. Don't use Node.js, npm, yarn, or pnpm.
+
+- `bun <file>` not `node <file>`
+- `bun install` not `npm install`
+- `bun run <script>` not `npm run <script>`
+- `bunx <pkg>` not `npx <pkg>`
+- Bun auto-loads `.env` — don't use dotenv
+- Prefer `Bun.file` over `node:fs` readFile/writeFile
 
 ## Testing
 
-Use `bun test` to run tests.
+Tests are colocated with source files (`*.test.ts`). Use `bun:test` imports (`test`, `expect`, `describe`).
 
-```ts#index.test.ts
-import { test, expect } from "bun:test";
+## Gotchas
 
-test("hello world", () => {
-  expect(1).toBe(1);
-});
-```
-
-## Frontend
-
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
-
-## CLI Development
-
-Use `@bomb.sh/args` for argument parsing. Don't use `gunshi`, `commander`, or `yargs`.
+- Build uses a separate `tsconfig.build.json` — the root `tsconfig.json` is for development type-checking only
+- Pre-commit hooks run via husky + lint-staged (lints JS/TS, formats everything)
+- TypeScript >= 5.9.3 is a peer dependency
