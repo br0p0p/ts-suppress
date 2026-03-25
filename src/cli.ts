@@ -1,4 +1,4 @@
-import { parse } from "@bomb.sh/args";
+import mri from "mri";
 import { createProject } from "./project.js";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
@@ -22,7 +22,7 @@ function printHelp() {
   );
 }
 
-const args = parse(process.argv.slice(2), {
+const args = mri<{ help: boolean; version: boolean }>(process.argv.slice(2), {
   boolean: ["help", "version"],
   alias: { h: "help", v: "version" },
 });

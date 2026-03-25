@@ -44,7 +44,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bomb.sh/args": "^0.3.1",
+    "mri": "^1.2.0",
     "ts-morph": "^27.0.2"
   },
   "devDependencies": {

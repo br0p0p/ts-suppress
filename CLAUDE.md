@@ -19,7 +19,7 @@ bun run knip         # Find unused exports/dependencies
 
 ```
 src/
-  cli.ts              # Entry point, command routing via @bomb.sh/args
+  cli.ts              # Entry point, command routing via mri
   commands/            # Command implementations (init, suppress, check, update)
   project.ts           # tsconfig.json discovery, ts-morph project creation
   diagnostics.ts       # Collects TS pre-emit diagnostics, fingerprints errors
@@ -32,7 +32,7 @@ src/
 ## Key Dependencies
 
 - **ts-morph** — TypeScript AST manipulation and project management
-- **@bomb.sh/args** — CLI argument parsing. Don't use `commander`, `yargs`, or `gunshi`.
+- **mri** — CLI argument parsing. Don't use `commander`, `yargs`, or `gunshi`.
 
 ## Tooling
 
