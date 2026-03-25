@@ -27,7 +27,7 @@ const args = mri<{ help: boolean; version: boolean }>(process.argv.slice(2), {
   alias: { h: "help", v: "version" },
 });
 
-const command = args._[0] as string | undefined;
+const command = args._[0];
 
 if (args.version) {
   console.log(VERSION);
