@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { mkdtemp, rm, cp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
-const CLI = resolve(import.meta.dir, "../index.ts");
+const CLI = resolve(import.meta.dir, "cli.ts");
 const basicFixture = resolve(import.meta.dir, "../fixtures/basic");
 
 let tempDir: string;
