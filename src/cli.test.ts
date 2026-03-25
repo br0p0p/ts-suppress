@@ -1,4 +1,3 @@
-// src/cli.test.ts
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { resolve } from "node:path";
 import { mkdtemp, rm, cp, readFile, writeFile } from "node:fs/promises";

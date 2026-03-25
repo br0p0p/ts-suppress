@@ -1,5 +1,3 @@
-// src/types.ts
-
 /** A single suppressed diagnostic fingerprint */
 export interface Suppression {
   /** File path relative to project root */
