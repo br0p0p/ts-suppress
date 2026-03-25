@@ -5,14 +5,14 @@ CLI tool for incremental TypeScript strictness adoption via bulk error suppressi
 ## Commands
 
 ```bash
-bun run build        # Compile with tsc (tsconfig.build.json)
-bun test             # Run tests (bun:test)
-bun run typecheck    # Type-check without emitting
-bun run lint         # Lint with oxlint
-bun run lint:fix     # Lint and auto-fix
-bun run fmt          # Format with oxfmt
-bun run fmt:check    # Check formatting
-bun run knip         # Find unused exports/dependencies
+pnpm run build        # Compile with tsc (tsconfig.build.json)
+pnpm test             # Run tests (vitest)
+pnpm run typecheck    # Type-check without emitting
+pnpm run lint         # Lint with oxlint
+pnpm run lint:fix     # Lint and auto-fix
+pnpm run fmt          # Format with oxfmt
+pnpm run fmt:check    # Check formatting
+pnpm run knip         # Find unused exports/dependencies
 ```
 
 ## Architecture
@@ -36,18 +36,15 @@ src/
 
 ## Tooling
 
-Use Bun exclusively. Don't use Node.js, npm, yarn, or pnpm.
+Use pnpm exclusively. Don't use npm, yarn, or bun.
 
-- `bun <file>` not `node <file>`
-- `bun install` not `npm install`
-- `bun run <script>` not `npm run <script>`
-- `bunx <pkg>` not `npx <pkg>`
-- Bun auto-loads `.env` — don't use dotenv
-- Prefer `Bun.file` over `node:fs` readFile/writeFile
+- `pnpm install` not `npm install`
+- `pnpm run <script>` not `npm run <script>`
+- `pnpm exec <pkg>` not `npx <pkg>`
 
 ## Testing
 
-Tests are colocated with source files (`*.test.ts`). Use `bun:test` imports (`test`, `expect`, `describe`).
+Tests are colocated with source files (`*.test.ts`). Use `vitest` imports (`test`, `expect`, `describe`).
 
 ## Gotchas
 

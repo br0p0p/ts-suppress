@@ -16,23 +16,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
         with:
-          bun-version: latest
+          version: latest
 
-      - run: bun install --frozen-lockfile
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: bun run typecheck
+        run: pnpm run typecheck
 
       - name: Lint
-        run: bun run lint
+        run: pnpm run lint
 
       - name: Format check
-        run: bun run fmt:check
+        run: pnpm run fmt:check
 
       - name: Test
-        run: bun test
+        run: pnpm test
 
       - name: Build
-        run: bun run build
+        run: pnpm run build

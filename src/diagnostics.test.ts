@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { Project, ScriptTarget } from "ts-morph";
 import { collectDiagnostics } from "./diagnostics.js";
 

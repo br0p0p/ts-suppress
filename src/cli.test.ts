@@ -1,10 +1,11 @@
-import { test, expect, beforeEach, afterEach } from "bun:test";
+import { test, expect, beforeEach, afterEach } from "vitest";
 import { resolve } from "node:path";
 import { mkdtemp, rm, cp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
 
-const CLI = resolve(import.meta.dir, "cli.ts");
-const basicFixture = resolve(import.meta.dir, "../fixtures/basic");
+const CLI = resolve(import.meta.dirname!, "cli.ts");
+const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
 
 let tempDir: string;
 
@@ -21,15 +22,11 @@ async function run(
   args: string[],
   cwd: string = tempDir,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const proc = Bun.spawn(["bun", CLI, ...args], {
-    cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+  return new Promise((res) => {
+    execFile("npx", ["tsx", CLI, ...args], { cwd }, (error, stdout, stderr) => {
+      res({ exitCode: (error?.code as number | undefined) ?? 0, stdout, stderr });
+    });
   });
-  const exitCode = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  return { exitCode, stdout, stderr };
 }
 
 // --- Help ---
