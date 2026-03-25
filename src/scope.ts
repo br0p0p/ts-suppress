@@ -1,4 +1,3 @@
-// src/scope.ts
 import { Node } from "ts-morph";
 
 /**

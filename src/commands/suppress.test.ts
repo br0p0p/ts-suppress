@@ -1,4 +1,3 @@
-// src/commands/suppress.test.ts
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";

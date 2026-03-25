@@ -1,4 +1,3 @@
-// src/hash.test.ts
 import { test, expect } from "bun:test";
 import { hashMessage } from "./hash.js";
 
