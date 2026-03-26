@@ -39,8 +39,6 @@ jobs:
         run: pnpm run build
 
   test:
-  test:
-    needs: checks
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
