@@ -34,7 +34,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "prepublishOnly": "pnpm run build",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "knip": "knip",
