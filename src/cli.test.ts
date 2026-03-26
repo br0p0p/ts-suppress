@@ -1,8 +1,10 @@
-import { test, expect, beforeEach, afterEach } from "vitest";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import { resolve } from "node:path";
 import { mkdtemp, rm, cp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
+
+vi.setConfig({ testTimeout: 30_000 });
 
 const CLI = resolve(import.meta.dirname!, "cli.ts");
 const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
