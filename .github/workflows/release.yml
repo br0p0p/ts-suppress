@@ -43,3 +43,5 @@ jobs:
       - run: pnpm run build
 
       - run: pnpm publish --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ""
