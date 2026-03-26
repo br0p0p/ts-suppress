@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 vi.setConfig({ testTimeout: 30_000 });
 
 const CLI = resolve(import.meta.dirname!, "cli.ts");
+const TSX_BIN = resolve(import.meta.dirname!, "../node_modules/.bin/tsx");
 const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
 
 let tempDir: string;
@@ -25,7 +26,7 @@ async function run(
   cwd: string = tempDir,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((res) => {
-    execFile("pnpm", ["exec", "tsx", CLI, ...args], { cwd }, (error, stdout, stderr) => {
+    execFile(TSX_BIN, [CLI, ...args], { cwd }, (error, stdout, stderr) => {
       res({ exitCode: (error?.code as number | undefined) ?? 0, stdout, stderr });
     });
   });
