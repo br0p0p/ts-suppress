@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import mri from "mri";
 import { createProject } from "./project.js";
 import { runCheck } from "./commands/check.js";
