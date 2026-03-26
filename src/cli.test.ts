@@ -23,7 +23,7 @@ async function run(
   cwd: string = tempDir,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((res) => {
-    execFile("npx", ["tsx", CLI, ...args], { cwd }, (error, stdout, stderr) => {
+    execFile("pnpm", ["exec", "tsx", CLI, ...args], { cwd }, (error, stdout, stderr) => {
       res({ exitCode: (error?.code as number | undefined) ?? 0, stdout, stderr });
     });
   });
