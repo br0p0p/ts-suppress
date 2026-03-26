@@ -2,9 +2,9 @@ import { test, expect, beforeEach, afterEach } from "vitest";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { Project, ScriptTarget } from "ts-morph";
 import { runUpdate } from "./update.js";
 import { writeSuppressions, readSuppressions } from "../suppressions.js";
+import { createInMemoryProject } from "../test-helpers.js";
 
 let tempDir: string;
 
@@ -15,21 +15,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await rm(tempDir, { recursive: true });
 });
-
-function createInMemoryProject(files: Record<string, string>): Project {
-  const project = new Project({
-    useInMemoryFileSystem: true,
-    compilerOptions: {
-      strict: true,
-      target: ScriptTarget.ESNext,
-      lib: ["lib.esnext.full.d.ts"],
-    },
-  });
-  for (const [name, content] of Object.entries(files)) {
-    project.createSourceFile(name, content);
-  }
-  return project;
-}
 
 const errorProject = () =>
   createInMemoryProject({

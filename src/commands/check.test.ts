@@ -1,13 +1,11 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, beforeEach, afterEach } from "vitest";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { Project, ScriptTarget } from "ts-morph";
 import { runCheck } from "./check.js";
 import { runSuppress } from "./suppress.js";
 import { writeSuppressions } from "../suppressions.js";
-
-vi.setConfig({ testTimeout: 30_000 });
+import { createInMemoryProject } from "../test-helpers.js";
 
 let tempDir: string;
 
@@ -18,21 +16,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await rm(tempDir, { recursive: true });
 });
-
-function createInMemoryProject(files: Record<string, string>): Project {
-  const project = new Project({
-    useInMemoryFileSystem: true,
-    compilerOptions: {
-      strict: true,
-      target: ScriptTarget.ESNext,
-      lib: ["lib.esnext.full.d.ts"],
-    },
-  });
-  for (const [name, content] of Object.entries(files)) {
-    project.createSourceFile(name, content);
-  }
-  return project;
-}
 
 const errorProject = () =>
   createInMemoryProject({

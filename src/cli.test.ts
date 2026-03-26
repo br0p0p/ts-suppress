@@ -1,29 +1,26 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect } from "vitest";
 import { resolve } from "node:path";
 import { mkdtemp, rm, cp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const CLI = resolve(import.meta.dirname!, "cli.ts");
 const TSX_BIN = resolve(import.meta.dirname!, "../node_modules/.bin/tsx");
 const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
 
-let tempDir: string;
-
-beforeEach(async () => {
-  tempDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-e2e-"));
+async function withFixture<T>(fn: (tempDir: string) => Promise<T>): Promise<T> {
+  const tempDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-e2e-"));
   await cp(basicFixture, tempDir, { recursive: true });
-});
+  try {
+    return await fn(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true });
+  }
+}
 
-afterEach(async () => {
-  await rm(tempDir, { recursive: true });
-});
-
-async function run(
+function run(
   args: string[],
-  cwd: string = tempDir,
+  cwd: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((res) => {
     execFile(TSX_BIN, [CLI, ...args], { cwd }, (error, stdout, stderr) => {
@@ -34,135 +31,149 @@ async function run(
 
 // --- Help ---
 
-test("no args shows help and exits 0", async () => {
-  const { exitCode, stdout } = await run([]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("suppress");
-  expect(stdout).toContain("check");
-});
+test.concurrent("no args shows help and exits 0", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout } = await run([], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("suppress");
+    expect(stdout).toContain("check");
+  }));
 
-test("--help shows help and exits 0", async () => {
-  const { exitCode, stdout } = await run(["--help"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("suppress");
-});
+test.concurrent("--help shows help and exits 0", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout } = await run(["--help"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("suppress");
+  }));
 
 // --- Init ---
 
-test("init creates empty suppression file", async () => {
-  const { exitCode } = await run(["init"]);
-  expect(exitCode).toBe(0);
-  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
-  const data = JSON.parse(content);
-  expect(data.suppressions).toEqual([]);
-});
+test.concurrent("init creates empty suppression file", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode } = await run(["init"], tempDir);
+    expect(exitCode).toBe(0);
+    const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    const data = JSON.parse(content);
+    expect(data.suppressions).toEqual([]);
+  }));
 
-test("init overwrites existing suppression file", async () => {
-  // Create a non-empty file first
-  await run(["suppress"]);
-  // Then init should overwrite with empty
-  const { exitCode } = await run(["init"]);
-  expect(exitCode).toBe(0);
-  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
-  const data = JSON.parse(content);
-  expect(data.suppressions).toEqual([]);
-});
+test.concurrent("init overwrites existing suppression file", () =>
+  withFixture(async (tempDir) => {
+    // Create a non-empty file first
+    await run(["suppress"], tempDir);
+    // Then init should overwrite with empty
+    const { exitCode } = await run(["init"], tempDir);
+    expect(exitCode).toBe(0);
+    const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    const data = JSON.parse(content);
+    expect(data.suppressions).toEqual([]);
+  }));
 
 // --- Suppress ---
 
-test("suppress writes suppression file and exits 0", async () => {
-  const { exitCode, stdout } = await run(["suppress"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("suppression(s)");
-  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
-  const data = JSON.parse(content);
-  expect(data.suppressions.length).toBeGreaterThan(0);
-});
+test.concurrent("suppress writes suppression file and exits 0", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout } = await run(["suppress"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("suppression(s)");
+    const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    const data = JSON.parse(content);
+    expect(data.suppressions.length).toBeGreaterThan(0);
+  }));
 
 // --- Check ---
 
-test("check after suppress exits 0", async () => {
-  await run(["suppress"]);
-  const { exitCode } = await run(["check"]);
-  expect(exitCode).toBe(0);
-});
+test.concurrent("check after suppress exits 0", () =>
+  withFixture(async (tempDir) => {
+    await run(["suppress"], tempDir);
+    const { exitCode } = await run(["check"], tempDir);
+    expect(exitCode).toBe(0);
+  }));
 
-test("check with no suppression file exits 1", async () => {
-  const { exitCode, stderr } = await run(["check"]);
-  expect(exitCode).toBe(1);
-  expect(stderr).toContain("unsuppressed");
-});
+test.concurrent("check with no suppression file exits 1", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stderr } = await run(["check"], tempDir);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("unsuppressed");
+  }));
 
-test("check detects stale suppressions and exits 1", async () => {
-  await run(["suppress"]);
-  // Fix the error
-  await writeFile(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
-  const { exitCode, stderr } = await run(["check"]);
-  expect(exitCode).toBe(1);
-  expect(stderr).toContain("stale");
-});
+test.concurrent("check detects stale suppressions and exits 1", () =>
+  withFixture(async (tempDir) => {
+    await run(["suppress"], tempDir);
+    // Fix the error
+    await writeFile(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
+    const { exitCode, stderr } = await run(["check"], tempDir);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("stale");
+  }));
 
 // --- Update ---
 
-test("update adds new suppressions and exits 0", async () => {
-  const { exitCode, stdout } = await run(["update"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("Added");
-  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
-  const data = JSON.parse(content);
-  expect(data.suppressions.length).toBeGreaterThan(0);
-});
+test.concurrent("update adds new suppressions and exits 0", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout } = await run(["update"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Added");
+    const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    const data = JSON.parse(content);
+    expect(data.suppressions.length).toBeGreaterThan(0);
+  }));
 
-test("update removes stale suppressions", async () => {
-  await run(["suppress"]);
-  // Fix the error so the suppression becomes stale
-  await writeFile(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
-  const { exitCode, stdout } = await run(["update"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("Removed");
-  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
-  const data = JSON.parse(content);
-  expect(data.suppressions).toEqual([]);
-});
+test.concurrent("update removes stale suppressions", () =>
+  withFixture(async (tempDir) => {
+    await run(["suppress"], tempDir);
+    // Fix the error so the suppression becomes stale
+    await writeFile(resolve(tempDir, "has-errors.ts"), "export const bad: number = 42;\n");
+    const { exitCode, stdout } = await run(["update"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Removed");
+    const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    const data = JSON.parse(content);
+    expect(data.suppressions).toEqual([]);
+  }));
 
-test("update reports no changes when already in sync", async () => {
-  await run(["suppress"]);
-  const { exitCode, stdout } = await run(["update"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("Already up to date");
-});
+test.concurrent("update reports no changes when already in sync", () =>
+  withFixture(async (tempDir) => {
+    await run(["suppress"], tempDir);
+    const { exitCode, stdout } = await run(["update"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Already up to date");
+  }));
 
-test("check passes after update", async () => {
-  await run(["update"]);
-  const { exitCode } = await run(["check"]);
-  expect(exitCode).toBe(0);
-});
+test.concurrent("check passes after update", () =>
+  withFixture(async (tempDir) => {
+    await run(["update"], tempDir);
+    const { exitCode } = await run(["check"], tempDir);
+    expect(exitCode).toBe(0);
+  }));
 
-test("fix is an alias for update", async () => {
-  const { exitCode, stdout } = await run(["fix"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toContain("Added");
-  const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
-  const data = JSON.parse(content);
-  expect(data.suppressions.length).toBeGreaterThan(0);
-});
+test.concurrent("fix is an alias for update", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout } = await run(["fix"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Added");
+    const content = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    const data = JSON.parse(content);
+    expect(data.suppressions.length).toBeGreaterThan(0);
+  }));
 
-test("fix produces identical file to update", async () => {
-  const { stdout: updateStdout } = await run(["update"]);
-  const updateContent = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+test.concurrent("fix produces identical file to update", () =>
+  withFixture(async (tempDir) => {
+    const { stdout: updateStdout } = await run(["update"], tempDir);
+    const updateContent = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
 
-  // Reset by removing the file, then run fix
-  await rm(resolve(tempDir, ".ts-suppressions.json"));
-  const { stdout: fixStdout } = await run(["fix"]);
-  const fixContent = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
+    // Reset by removing the file, then run fix
+    await rm(resolve(tempDir, ".ts-suppressions.json"));
+    const { stdout: fixStdout } = await run(["fix"], tempDir);
+    const fixContent = await readFile(resolve(tempDir, ".ts-suppressions.json"), "utf-8");
 
-  expect(fixContent).toBe(updateContent);
-  expect(fixStdout).toBe(updateStdout);
-});
+    expect(fixContent).toBe(updateContent);
+    expect(fixStdout).toBe(updateStdout);
+  }));
 
 // --- Error handling ---
 
-test("update with missing tsconfig exits 1 with clear error", async () => {
+test.concurrent("update with missing tsconfig exits 1 with clear error", async () => {
   const emptyDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-empty-"));
   try {
     const { exitCode, stderr } = await run(["update"], emptyDir);
@@ -173,14 +184,15 @@ test("update with missing tsconfig exits 1 with clear error", async () => {
   }
 });
 
-test("update with corrupt suppression JSON exits 1 with clear error", async () => {
-  await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
-  const { exitCode, stderr } = await run(["update"]);
-  expect(exitCode).toBe(1);
-  expect(stderr.length).toBeGreaterThan(0);
-});
+test.concurrent("update with corrupt suppression JSON exits 1 with clear error", () =>
+  withFixture(async (tempDir) => {
+    await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
+    const { exitCode, stderr } = await run(["update"], tempDir);
+    expect(exitCode).toBe(1);
+    expect(stderr.length).toBeGreaterThan(0);
+  }));
 
-test("missing tsconfig exits 1 with clear error", async () => {
+test.concurrent("missing tsconfig exits 1 with clear error", async () => {
   const emptyDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-empty-"));
   try {
     const { exitCode, stderr } = await run(["check"], emptyDir);
@@ -191,10 +203,11 @@ test("missing tsconfig exits 1 with clear error", async () => {
   }
 });
 
-test("corrupt suppression JSON exits 1 with clear error", async () => {
-  await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
-  const { exitCode, stderr } = await run(["check"]);
-  expect(exitCode).toBe(1);
-  // Should get a parse error, not a crash
-  expect(stderr.length).toBeGreaterThan(0);
-});
+test.concurrent("corrupt suppression JSON exits 1 with clear error", () =>
+  withFixture(async (tempDir) => {
+    await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
+    const { exitCode, stderr } = await run(["check"], tempDir);
+    expect(exitCode).toBe(1);
+    // Should get a parse error, not a crash
+    expect(stderr.length).toBeGreaterThan(0);
+  }));
