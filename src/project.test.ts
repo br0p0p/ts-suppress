@@ -1,9 +1,9 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { resolve } from "node:path";
 import { createProject, findTsConfig } from "./project.js";
 
-const basicFixture = resolve(import.meta.dir, "../fixtures/basic");
-const nestedFixture = resolve(import.meta.dir, "../fixtures/nested/packages/app");
+const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
+const nestedFixture = resolve(import.meta.dirname!, "../fixtures/nested/packages/app");
 
 test("findTsConfig finds tsconfig.json in the given directory", () => {
   const result = findTsConfig(basicFixture);
@@ -12,7 +12,7 @@ test("findTsConfig finds tsconfig.json in the given directory", () => {
 
 test("findTsConfig walks up to find tsconfig.json", () => {
   const result = findTsConfig(nestedFixture);
-  expect(result).toBe(resolve(import.meta.dir, "../fixtures/nested/tsconfig.json"));
+  expect(result).toBe(resolve(import.meta.dirname!, "../fixtures/nested/tsconfig.json"));
 });
 
 test("findTsConfig throws when no tsconfig.json found", () => {
@@ -27,5 +27,5 @@ test("createProject returns a ts-morph Project", () => {
 
 test("createProject returns the resolved project root", () => {
   const { projectRoot } = createProject(nestedFixture);
-  expect(projectRoot).toBe(resolve(import.meta.dir, "../fixtures/nested"));
+  expect(projectRoot).toBe(resolve(import.meta.dirname!, "../fixtures/nested"));
 });

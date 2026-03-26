@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach } from "bun:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,6 +6,8 @@ import { Project, ScriptTarget } from "ts-morph";
 import { runCheck } from "./check.js";
 import { runSuppress } from "./suppress.js";
 import { writeSuppressions } from "../suppressions.js";
+
+vi.setConfig({ testTimeout: 30_000 });
 
 let tempDir: string;
 

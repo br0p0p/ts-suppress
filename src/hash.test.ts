@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { hashMessage } from "./hash.js";
 
 test("returns a hex string", () => {

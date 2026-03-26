@@ -1,9 +1,9 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { resolve } from "node:path";
 import { Project } from "ts-morph";
 import { buildScopePath } from "./scope.js";
 
-const fixtureDir = resolve(import.meta.dir, "../fixtures/scoped");
+const fixtureDir = resolve(import.meta.dirname!, "../fixtures/scoped");
 
 function getScopesFromFixture(): string[] {
   const project = new Project({
