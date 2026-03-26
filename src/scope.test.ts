@@ -5,12 +5,12 @@ import { buildScopePath } from "./scope.js";
 
 const fixtureDir = resolve(import.meta.dirname!, "../fixtures/scoped");
 
-function getScopesFromFixture(): string[] {
+const scopes = (() => {
   const project = new Project({
     tsConfigFilePath: resolve(fixtureDir, "tsconfig.json"),
   });
   const diagnostics = project.getPreEmitDiagnostics();
-  const scopes: string[] = [];
+  const result: string[] = [];
 
   for (const diag of diagnostics) {
     const sourceFile = diag.getSourceFile();
@@ -20,33 +20,28 @@ function getScopesFromFixture(): string[] {
     const node = sourceFile.getDescendantAtPos(start);
     if (!node) continue;
 
-    scopes.push(buildScopePath(node));
+    result.push(buildScopePath(node));
   }
 
-  return scopes;
-}
+  return result;
+})();
 
 test("resolves module-level scope as empty string", () => {
-  const scopes = getScopesFromFixture();
   expect(scopes).toContain("");
 });
 
 test("resolves class method scope", () => {
-  const scopes = getScopesFromFixture();
   expect(scopes).toContain("UserService.validate");
 });
 
 test("resolves getter scope with get: prefix", () => {
-  const scopes = getScopesFromFixture();
   expect(scopes).toContain("UserService.get:name");
 });
 
 test("resolves named function scope", () => {
-  const scopes = getScopesFromFixture();
   expect(scopes).toContain("processData");
 });
 
 test("resolves arrow function via parent variable declaration", () => {
-  const scopes = getScopesFromFixture();
   expect(scopes).toContain("handler");
 });
