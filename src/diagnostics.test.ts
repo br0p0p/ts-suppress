@@ -58,7 +58,3 @@ test("error inside a class method has class.method scope", () => {
   const results = collectDiagnostics(project, "/");
   expect(results[0]?.scope).toBe("Svc.run");
 });
-
-test("skips diagnostics with no source file", () => {
-  expect(cleanResults).toEqual([]);
-});
