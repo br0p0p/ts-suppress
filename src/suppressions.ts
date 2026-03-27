@@ -56,8 +56,9 @@ export async function writeSuppressions(
 ): Promise<void> {
   const filePath = resolve(projectRoot, SUPPRESSIONS_FILENAME);
   const sorted = [...suppressions].sort(compareSuppression);
-  const data: SuppressionFile = { suppressions: sorted };
-  await writeFile(filePath, JSON.stringify(data, null, 2) + "\n");
+  const lines = sorted.map((s) => "  " + JSON.stringify(s));
+  const content = `{"suppressions": [\n${lines.join(",\n")}\n]}\n`;
+  await writeFile(filePath, content);
 }
 
 export interface SuppressionDiff {
