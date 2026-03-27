@@ -20,19 +20,30 @@ pnpm run knip         # Find unused exports/dependencies
 ```
 src/
   cli.ts              # Entry point, command routing via mri
-  commands/            # Command implementations (init, suppress, check, update)
+  commands/
+    init.ts            # Initialize .ts-suppressions.json
+    suppress.ts        # Capture current TS errors into suppressions
+    check.ts           # Verify no new unsuppressed errors
+    update.ts          # Refresh suppressions after code changes
   project.ts           # tsconfig.json discovery, ts-morph project creation
   diagnostics.ts       # Collects TS pre-emit diagnostics, fingerprints errors
   suppressions.ts      # Reads/writes .ts-suppressions.json, diff logic
   scope.ts             # AST traversal for dot-separated scope chains
   hash.ts              # SHA256 hashing of diagnostic messages
   types.ts             # Shared interfaces (Suppression, SuppressionFile)
+  test-helpers.ts      # Shared test utilities
 ```
 
 ## Key Dependencies
 
 - **ts-morph** — TypeScript AST manipulation and project management
 - **mri** — CLI argument parsing. Don't use `commander`, `yargs`, or `gunshi`.
+
+## Code Style
+
+- ESM-only (`"type": "module"`) — use `.js` extensions in relative imports
+- Strict TypeScript with `noUncheckedIndexedAccess` and `verbatimModuleSyntax`
+- `oxlint-tsgolint` plugin is enabled alongside oxlint
 
 ## Tooling
 
