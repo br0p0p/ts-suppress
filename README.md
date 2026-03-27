@@ -73,7 +73,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 | **Error identification** | file + error code + message hash + scope                 | file + error code + scope                      |
 | **tsc integration**      | Standalone — reads diagnostics via ts-morph              | Wraps/intercepts tsc output                    |
 | **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update` | Flag-based: `--gen-bulk-suppress`, `--changed` |
-| **Runtime dependencies** | 2 (mri, ts-morph)                                        | Larger dependency tree                         |
+| **Runtime dependencies** | 2 (mri, ts-morph)                                        | 37 packages                                    |
 | **Maintenance**          | Actively maintained                                      | Last published 2024                            |
 
 ### Key differences
@@ -81,7 +81,6 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 - **Hash-based fingerprinting** — ts-suppress includes a SHA-256 hash of the diagnostic message text in each suppression entry. This means two errors on the same line with the same error code but different messages are tracked independently, reducing false matches.
 - **No tsc patching** — ts-suppress uses ts-morph to collect diagnostics directly rather than wrapping or intercepting the TypeScript compiler. This avoids coupling to tsc's output format.
 - **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`) is a separate command rather than a flag, making the workflow easier to script and understand.
-- **Minimal footprint** — Only two runtime dependencies (mri for argument parsing, ts-morph for TypeScript AST access).
 
 ## Acknowledgements
 
