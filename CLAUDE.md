@@ -25,18 +25,19 @@ src/
     suppress.ts        # Capture current TS errors into suppressions
     check.ts           # Verify no new unsuppressed errors
     update.ts          # Refresh suppressions after code changes
-  project.ts           # tsconfig.json discovery, ts-morph project creation
+  project.ts           # tsconfig.json discovery, TypeScript Program creation
   diagnostics.ts       # Collects TS pre-emit diagnostics, fingerprints errors
   suppressions.ts      # Reads/writes .ts-suppressions.json, diff logic
   scope.ts             # AST traversal for dot-separated scope chains
   hash.ts              # SHA256 hashing of diagnostic messages
   types.ts             # Shared interfaces (Suppression, SuppressionFile)
   test-helpers.ts      # Shared test utilities
+  ast.ts               # AST helper: find deepest node at a source position
 ```
 
 ## Key Dependencies
 
-- **ts-morph** — TypeScript AST manipulation and project management
+- **typescript** (peer) — Compiler API for diagnostics and AST traversal (used directly, no wrapper)
 - **mri** — CLI argument parsing. Don't use `commander`, `yargs`, or `gunshi`.
 
 ## Code Style

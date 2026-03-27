@@ -11,7 +11,7 @@ export interface TsProject {
  * Uses TypeScript's own findConfigFile for correct resolution behavior.
  */
 export function findTsConfig(cwd: string): string {
-  const configPath = ts.findConfigFile(cwd, ts.sys.fileExists, "tsconfig.json");
+  const configPath = ts.findConfigFile(cwd, (f) => ts.sys.fileExists(f), "tsconfig.json");
   if (!configPath) {
     throw new Error(`No tsconfig.json found starting from ${cwd}`);
   }
@@ -26,7 +26,7 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
   const tsConfigFilePath = findTsConfig(cwd);
   const projectRoot = dirname(tsConfigFilePath);
 
-  const configFile = ts.readConfigFile(tsConfigFilePath, ts.sys.readFile);
+  const configFile = ts.readConfigFile(tsConfigFilePath, (f) => ts.sys.readFile(f));
   const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
   const program = ts.createProgram(parsed.fileNames, parsed.options);
 

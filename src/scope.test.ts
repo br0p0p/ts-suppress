@@ -2,22 +2,13 @@ import { test, expect } from "vitest";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { buildScopePath } from "./scope.js";
+import { findNodeAtPosition } from "./ast.js";
 
 const fixtureDir = resolve(import.meta.dirname!, "../fixtures/scoped");
 
-function findNodeAtPosition(sourceFile: ts.SourceFile, position: number): ts.Node | undefined {
-  function visit(node: ts.Node): ts.Node | undefined {
-    if (position >= node.getStart(sourceFile) && position < node.getEnd()) {
-      return ts.forEachChild(node, visit) ?? node;
-    }
-    return undefined;
-  }
-  return visit(sourceFile);
-}
-
 const scopes = (() => {
   const configPath = resolve(fixtureDir, "tsconfig.json");
-  const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+  const configFile = ts.readConfigFile(configPath, (f) => ts.sys.readFile(f));
   const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, fixtureDir);
   const program = ts.createProgram(parsed.fileNames, parsed.options);
   const diagnostics = ts.getPreEmitDiagnostics(program);

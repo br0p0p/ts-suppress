@@ -2,18 +2,9 @@ import ts from "typescript";
 import { relative } from "node:path";
 import { hashMessage } from "./hash.js";
 import { buildScopePath } from "./scope.js";
+import { findNodeAtPosition } from "./ast.js";
 import type { Suppression } from "./types.js";
 import type { TsProject } from "./project.js";
-
-function findNodeAtPosition(sourceFile: ts.SourceFile, position: number): ts.Node | undefined {
-  function visit(node: ts.Node): ts.Node | undefined {
-    if (position >= node.getStart(sourceFile) && position < node.getEnd()) {
-      return ts.forEachChild(node, visit) ?? node;
-    }
-    return undefined;
-  }
-  return visit(sourceFile);
-}
 
 function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChain): string {
   return typeof messageText === "string" ? messageText : messageText.messageText;
