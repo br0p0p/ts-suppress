@@ -1,4 +1,3 @@
-import type { Project } from "ts-morph";
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
 import { readSuppressions, writeSuppressions, diffSuppressions } from "../suppressions.js";
@@ -16,7 +15,7 @@ export interface UpdateResult {
  * writes the updated file, and reports what changed.
  */
 export async function runUpdate(
-  project: TsProject | Project,
+  project: TsProject,
   projectRoot: string,
   outputRoot: string = projectRoot,
 ): Promise<UpdateResult> {

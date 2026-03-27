@@ -1,27 +1,37 @@
 import { test, expect } from "vitest";
 import { resolve } from "node:path";
 import ts from "typescript";
-import { Project } from "ts-morph";
 import { buildScopePath } from "./scope.js";
 
 const fixtureDir = resolve(import.meta.dirname!, "../fixtures/scoped");
 
+function findNodeAtPosition(sourceFile: ts.SourceFile, position: number): ts.Node | undefined {
+  function visit(node: ts.Node): ts.Node | undefined {
+    if (position >= node.getStart(sourceFile) && position < node.getEnd()) {
+      return ts.forEachChild(node, visit) ?? node;
+    }
+    return undefined;
+  }
+  return visit(sourceFile);
+}
+
 const scopes = (() => {
-  const project = new Project({
-    tsConfigFilePath: resolve(fixtureDir, "tsconfig.json"),
-  });
-  const diagnostics = project.getPreEmitDiagnostics();
+  const configPath = resolve(fixtureDir, "tsconfig.json");
+  const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, fixtureDir);
+  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const diagnostics = ts.getPreEmitDiagnostics(program);
   const result: string[] = [];
 
   for (const diag of diagnostics) {
-    const sourceFile = diag.getSourceFile();
-    const start = diag.getStart();
+    const sourceFile = diag.file;
+    const start = diag.start;
     if (!sourceFile || start == null) continue;
 
-    const node = sourceFile.getDescendantAtPos(start);
+    const node = findNodeAtPosition(sourceFile, start);
     if (!node) continue;
 
-    result.push(buildScopePath(node as unknown as ts.Node));
+    result.push(buildScopePath(node));
   }
 
   return result;

@@ -1,39 +1,46 @@
-import type { Project } from "ts-morph";
 import ts from "typescript";
 import { relative } from "node:path";
 import { hashMessage } from "./hash.js";
 import { buildScopePath } from "./scope.js";
-import type { TsProject } from "./project.js";
 import type { Suppression } from "./types.js";
+import type { TsProject } from "./project.js";
+
+function findNodeAtPosition(sourceFile: ts.SourceFile, position: number): ts.Node | undefined {
+  function visit(node: ts.Node): ts.Node | undefined {
+    if (position >= node.getStart(sourceFile) && position < node.getEnd()) {
+      return ts.forEachChild(node, visit) ?? node;
+    }
+    return undefined;
+  }
+  return visit(sourceFile);
+}
+
+function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChain): string {
+  return typeof messageText === "string" ? messageText : messageText.messageText;
+}
 
 /**
- * Collect all pre-emit diagnostics from a project as Suppression fingerprints.
- * Accepts either a TsProject (ts.Program wrapper) or a ts-morph Project for backward compatibility.
+ * Collect all pre-emit diagnostics from a TypeScript Program as Suppression fingerprints.
  * Project creation is the caller's responsibility — this enables in-memory testing.
  */
-export function collectDiagnostics(
-  project: TsProject | Project,
-  projectRoot: string,
-): Suppression[] {
-  const diagnostics = (project as Project).getPreEmitDiagnostics();
-
+export function collectDiagnostics(project: TsProject, projectRoot: string): Suppression[] {
+  const diagnostics = ts.getPreEmitDiagnostics(project.program);
   const suppressions: Suppression[] = [];
 
   for (const diag of diagnostics) {
-    const sourceFile = diag.getSourceFile();
+    const sourceFile = diag.file;
     if (!sourceFile) continue;
 
-    const filePath = relative(projectRoot, sourceFile.getFilePath());
-    const code = diag.getCode();
-    const messageText = diag.getMessageText();
-    const message = typeof messageText === "string" ? messageText : messageText.getMessageText();
+    const filePath = relative(projectRoot, sourceFile.fileName);
+    const code = diag.code;
+    const message = flattenDiagnosticMessage(diag.messageText);
 
-    const start = diag.getStart();
+    const start = diag.start;
     let scope = "";
     if (start != null) {
-      const node = sourceFile.getDescendantAtPos(start);
+      const node = findNodeAtPosition(sourceFile, start);
       if (node) {
-        scope = buildScopePath(node as unknown as ts.Node);
+        scope = buildScopePath(node);
       }
     }
 
