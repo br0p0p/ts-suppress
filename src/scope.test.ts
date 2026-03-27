@@ -1,5 +1,6 @@
 import { test, expect } from "vitest";
 import { resolve } from "node:path";
+import ts from "typescript";
 import { Project } from "ts-morph";
 import { buildScopePath } from "./scope.js";
 
@@ -20,7 +21,7 @@ const scopes = (() => {
     const node = sourceFile.getDescendantAtPos(start);
     if (!node) continue;
 
-    result.push(buildScopePath(node));
+    result.push(buildScopePath(node as unknown as ts.Node));
   }
 
   return result;

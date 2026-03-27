@@ -1,6 +1,10 @@
-import { Project } from "ts-morph";
 import ts from "typescript";
 import { dirname } from "node:path";
+
+/** Thin wrapper around ts.Program — the only surface area consumers need. */
+export interface TsProject {
+  program: ts.Program;
+}
 
 /**
  * Find the nearest tsconfig.json by walking up from the given directory.
@@ -15,12 +19,16 @@ export function findTsConfig(cwd: string): string {
 }
 
 /**
- * Create a ts-morph Project from the nearest tsconfig.json.
- * Returns the Project and the resolved project root (directory containing tsconfig.json).
+ * Create a TypeScript Program from the nearest tsconfig.json.
+ * Returns the Program and the resolved project root (directory containing tsconfig.json).
  */
-export function createProject(cwd: string): { project: Project; projectRoot: string } {
+export function createProject(cwd: string): { project: TsProject; projectRoot: string } {
   const tsConfigFilePath = findTsConfig(cwd);
   const projectRoot = dirname(tsConfigFilePath);
-  const project = new Project({ tsConfigFilePath });
-  return { project, projectRoot };
+
+  const configFile = ts.readConfigFile(tsConfigFilePath, ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
+  const program = ts.createProgram(parsed.fileNames, parsed.options);
+
+  return { project: { program }, projectRoot };
 }

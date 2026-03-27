@@ -1,5 +1,6 @@
 import { test, expect } from "vitest";
 import { resolve } from "node:path";
+import ts from "typescript";
 import { createProject, findTsConfig } from "./project.js";
 
 const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
@@ -19,10 +20,12 @@ test("findTsConfig throws when no tsconfig.json found", () => {
   expect(() => findTsConfig("/tmp")).toThrow();
 });
 
-test("createProject returns a ts-morph Project", () => {
+test("createProject returns a TsProject with diagnostics", () => {
   const { project } = createProject(basicFixture);
   expect(project).toBeDefined();
-  expect(project.getPreEmitDiagnostics().length).toBeGreaterThan(0);
+  expect(project.program).toBeDefined();
+  const diagnostics = ts.getPreEmitDiagnostics(project.program);
+  expect(diagnostics.length).toBeGreaterThan(0);
 });
 
 test("createProject returns the resolved project root", () => {

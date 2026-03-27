@@ -1,4 +1,5 @@
 import type { Project } from "ts-morph";
+import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
 import { readSuppressions, diffSuppressions } from "../suppressions.js";
 import type { Suppression } from "../types.js";
@@ -14,7 +15,7 @@ export interface CheckResult {
  * suppressionsRoot is where the suppression file is read from (may differ from projectRoot in tests).
  */
 export async function runCheck(
-  project: Project,
+  project: TsProject | Project,
   projectRoot: string,
   suppressionsRoot: string = projectRoot,
 ): Promise<CheckResult> {
