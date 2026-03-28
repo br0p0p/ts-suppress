@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.3.0...ts-suppress-v0.4.0) (2026-03-28)
+
+
+### Features
+
+* **init:** recommend adding suppression file to formatter ignore list ([f76902f](https://github.com/br0p0p/ts-suppress/commit/f76902f1b3bf3933df4ac5f9453102e255284001))
+* use compact one-line-per-entry JSON format for suppressions ([7a89a1d](https://github.com/br0p0p/ts-suppress/commit/7a89a1dd70f91b98bfce1ecd5d3bc76a4dfe58e9))
+
+
+### Documentation
+
+* add comparison with ts-bulk-suppress ([#11](https://github.com/br0p0p/ts-suppress/issues/11)) ([5eb74bb](https://github.com/br0p0p/ts-suppress/commit/5eb74bbfda9000463197213714da8a8471143492))
+* update CLAUDE.md with expanded architecture and code style section ([89f0f57](https://github.com/br0p0p/ts-suppress/commit/89f0f5728bf844b5d75c8e2a42b046379d5bd62d))
+
+
+### Refactoring
+
+* replace ts-morph with TypeScript compiler API ([#12](https://github.com/br0p0p/ts-suppress/issues/12)) ([e1d4b75](https://github.com/br0p0p/ts-suppress/commit/e1d4b75a5b45a439e91de814b9a49576f5a93cf5))
+
 ## [0.3.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.2.0...ts-suppress-v0.3.0) (2026-03-26)
 
 
