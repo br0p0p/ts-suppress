@@ -39,7 +39,9 @@ if (args.version) {
 } else if (command) {
   switch (command) {
     case "init": {
-      await runInit();
+      const initArgs = mri(process.argv.slice(3), { boolean: ["ignore"] });
+      const ignore = "ignore" in initArgs ? (initArgs["ignore"] as boolean) : undefined;
+      await runInit(ignore);
       break;
     }
     case "suppress": {
