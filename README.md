@@ -67,24 +67,24 @@ The `check` command diffs the current diagnostics against the suppression file a
 
 ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok and shares the same core idea: capture TypeScript errors into an external file instead of scattering `@ts-ignore` comments. The two tools take different approaches to the problem.
 
-|                          | ts-suppress                                              | ts-bulk-suppress                               |
-| ------------------------ | -------------------------------------------------------- | ---------------------------------------------- |
-| **Suppression file**     | Single `.ts-suppressions.json`                           | `.ts-bulk-suppressions.json`                   |
-| **Error identification** | file + error code + message hash + scope                 | file + error code + scope                      |
-| **tsc integration**      | Standalone — reads diagnostics via ts-morph              | Wraps/intercepts tsc output                    |
-| **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update` | Flag-based: `--gen-bulk-suppress`, `--changed` |
-| **Runtime dependencies** | 2 (mri, ts-morph)                                        | 37 packages                                    |
-| **Maintenance**          | Actively maintained                                      | Last published 2024                            |
+|                          | ts-suppress                                                | ts-bulk-suppress                                                      |
+| ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Suppression file**     | Single `.ts-suppressions.json`                             | `.ts-bulk-suppressions.json`                                          |
+| **Error identification** | file + error code + message hash + scope                   | file + error code + scope                                             |
+| **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API | Wraps/intercepts tsc output                                           |
+| **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`   | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
+| **Runtime dependencies** | 1 (mri) + TypeScript as peer dep                           | 37 packages                                                           |
+| **Maintenance**          | Actively maintained                                        | [Last published 2024](https://www.npmjs.com/package/ts-bulk-suppress) |
 
 ### Key differences
 
 - **Hash-based fingerprinting** — ts-suppress includes a SHA-256 hash of the diagnostic message text in each suppression entry. This means two errors on the same line with the same error code but different messages are tracked independently, reducing false matches.
-- **No tsc patching** — ts-suppress uses ts-morph to collect diagnostics directly rather than wrapping or intercepting the TypeScript compiler. This avoids coupling to tsc's output format.
+- **No tsc patching** — ts-suppress uses the TypeScript compiler API directly to collect diagnostics rather than wrapping or intercepting tsc. This avoids coupling to tsc's output format.
 - **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`) is a separate command rather than a flag, making the workflow easier to script and understand.
 
 ## Acknowledgements
 
-Inspired by ideas from [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok, specifically the approach of capturing TypeScript errors into an external suppression file rather than using inline ignore comments.
+Inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok.
 
 ## License
 
