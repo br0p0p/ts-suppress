@@ -69,6 +69,52 @@ test.concurrent("init overwrites existing suppression file", () =>
     expect(data.suppressions).toEqual([]);
   }));
 
+test.concurrent("init --ignore adds to existing .prettierignore", () =>
+  withFixture(async (tempDir) => {
+    await writeFile(resolve(tempDir, ".prettierignore"), "dist\n");
+    const { exitCode, stdout } = await run(["init", "--ignore"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Added .ts-suppressions.json to .prettierignore");
+    const content = await readFile(resolve(tempDir, ".prettierignore"), "utf-8");
+    expect(content).toContain(".ts-suppressions.json");
+  }));
+
+test.concurrent("init --ignore adds to both ignore files when both exist", () =>
+  withFixture(async (tempDir) => {
+    await writeFile(resolve(tempDir, ".prettierignore"), "dist\n");
+    await writeFile(resolve(tempDir, ".oxfmtignore"), "dist\n");
+    const { exitCode, stdout } = await run(["init", "--ignore"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain(".prettierignore");
+    expect(stdout).toContain(".oxfmtignore");
+  }));
+
+test.concurrent("init --ignore is idempotent", () =>
+  withFixture(async (tempDir) => {
+    await writeFile(resolve(tempDir, ".prettierignore"), "dist\n.ts-suppressions.json\n");
+    const { exitCode, stdout } = await run(["init", "--ignore"], tempDir);
+    expect(exitCode).toBe(0);
+    // Should not print "Added" since it's already there
+    expect(stdout).not.toContain("Added");
+  }));
+
+test.concurrent("init --ignore with no ignore files prints tip", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout } = await run(["init", "--ignore"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Tip:");
+  }));
+
+test.concurrent("init --no-ignore skips ignore file updates", () =>
+  withFixture(async (tempDir) => {
+    await writeFile(resolve(tempDir, ".prettierignore"), "dist\n");
+    const { exitCode, stdout } = await run(["init", "--no-ignore"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).not.toContain("Added");
+    const content = await readFile(resolve(tempDir, ".prettierignore"), "utf-8");
+    expect(content).toBe("dist\n");
+  }));
+
 // --- Suppress ---
 
 test.concurrent("suppress writes suppression file and exits 0", () =>
