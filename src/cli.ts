@@ -39,7 +39,14 @@ if (args.version) {
 } else if (command) {
   switch (command) {
     case "init": {
-      await runInit();
+      const rawArgs = process.argv.slice(2);
+      let ignore: boolean | undefined;
+      if (rawArgs.includes("--ignore")) {
+        ignore = true;
+      } else if (rawArgs.includes("--no-ignore")) {
+        ignore = false;
+      }
+      await runInit(ignore);
       break;
     }
     case "suppress": {
