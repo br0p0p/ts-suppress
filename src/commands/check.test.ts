@@ -25,7 +25,7 @@ const errorProject = () =>
 test("check returns success when all errors are suppressed", async () => {
   const project = errorProject();
   await runSuppress(project, "/", tempDir);
-  // Re-create project (ts-morph projects are stateful)
+  // Re-create project to get a fresh program
   const result = await runCheck(errorProject(), "/", tempDir);
   expect(result.exitCode).toBe(0);
   expect(result.unsuppressed).toEqual([]);

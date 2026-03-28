@@ -1,4 +1,4 @@
-import { Node } from "ts-morph";
+import ts from "typescript";
 
 /**
  * Build a dot-separated scope path by walking up the AST from a node.
@@ -11,51 +11,53 @@ import { Node } from "ts-morph";
  *   - "MyClass.get:name" for a getter
  *   - "" for module scope
  */
-export function buildScopePath(node: Node): string {
+export function buildScopePath(node: ts.Node): string {
   const parts: string[] = [];
-  let current: Node | undefined = node;
+  let current: ts.Node | undefined = node;
 
   while (current) {
     const name = getScopeName(current);
     if (name != null) {
       parts.unshift(name);
     }
-    current = current.getParent();
+    current = current.parent;
   }
 
   return parts.join(".");
 }
 
-function getScopeName(node: Node): string | null {
-  if (Node.isFunctionDeclaration(node)) {
-    return node.getName() ?? null;
+function getScopeName(node: ts.Node): string | null {
+  if (ts.isFunctionDeclaration(node)) {
+    return node.name?.text ?? null;
   }
 
-  if (Node.isMethodDeclaration(node)) {
-    return node.getName();
+  if (ts.isMethodDeclaration(node)) {
+    return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
   }
 
-  if (Node.isClassDeclaration(node)) {
-    return node.getName() ?? null;
+  if (ts.isClassDeclaration(node)) {
+    return node.name?.text ?? null;
   }
 
-  if (Node.isGetAccessorDeclaration(node)) {
-    return `get:${node.getName()}`;
+  if (ts.isGetAccessorDeclaration(node)) {
+    const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+    return `get:${name}`;
   }
 
-  if (Node.isSetAccessorDeclaration(node)) {
-    return `set:${node.getName()}`;
+  if (ts.isSetAccessorDeclaration(node)) {
+    const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+    return `set:${name}`;
   }
 
-  if (Node.isConstructorDeclaration(node)) {
+  if (ts.isConstructorDeclaration(node)) {
     return "constructor";
   }
 
   // Arrow function or function expression assigned to a variable
-  if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
-    const parent = node.getParent();
-    if (parent && Node.isVariableDeclaration(parent)) {
-      return parent.getName();
+  if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+    const parent = node.parent;
+    if (parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+      return parent.name.text;
     }
     return null; // anonymous, no scope name
   }

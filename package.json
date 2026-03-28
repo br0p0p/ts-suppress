@@ -43,8 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "mri": "^1.2.0",
-    "ts-morph": "^27.0.2"
+    "mri": "^1.2.0"
   },
   "devDependencies": {
     "@types/node": "^24",
