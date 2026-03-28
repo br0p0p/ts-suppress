@@ -10,9 +10,11 @@ export async function runInit(ignore?: boolean) {
   const detected = await detectIgnoreFiles(cwd);
 
   if (detected.length === 0) {
-    console.log(
-      `\nTip: Add ${SUPPRESSIONS_FILENAME} to your formatter's ignore list (e.g. .prettierignore, .oxfmtignore) to preserve its compact format.`,
-    );
+    if (ignore !== false) {
+      console.log(
+        `\nTip: Add ${SUPPRESSIONS_FILENAME} to your formatter's ignore list (e.g. .prettierignore, .oxfmtignore) to preserve its compact format.`,
+      );
+    }
     return;
   }
 
