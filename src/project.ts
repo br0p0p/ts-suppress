@@ -27,7 +27,13 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
   const projectRoot = dirname(tsConfigFilePath);
 
   const configFile = ts.readConfigFile(tsConfigFilePath, (f) => ts.sys.readFile(f));
+  if (configFile.error) {
+    throw new Error(ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n"));
+  }
   const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
+  if (parsed.errors.length > 0) {
+    throw new Error(ts.flattenDiagnosticMessageText(parsed.errors[0]!.messageText, "\n"));
+  }
   const program = ts.createProgram(parsed.fileNames, parsed.options);
 
   return { project: { program }, projectRoot };

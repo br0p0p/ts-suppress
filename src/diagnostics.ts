@@ -6,6 +6,8 @@ import { findNodeAtPosition } from "./ast.js";
 import type { Suppression } from "./types.js";
 import type { TsProject } from "./project.js";
 
+// Only the top-level message is used for fingerprinting; chained sub-messages
+// are diagnostic detail that varies with context and would produce unstable hashes.
 function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChain): string {
   return typeof messageText === "string" ? messageText : messageText.messageText;
 }
