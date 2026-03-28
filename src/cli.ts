@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import mri from "mri";
 import { createProject } from "./project.js";
 import { runCheck } from "./commands/check.js";
@@ -6,7 +7,8 @@ import { runInit } from "./commands/init.js";
 import { runSuppress } from "./commands/suppress.js";
 import { runUpdate } from "./commands/update.js";
 
-const VERSION = "0.2.0";
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require("../package.json") as { version: string };
 
 const commands = [
   ["init", "Create an empty .ts-suppressions.json file"],
