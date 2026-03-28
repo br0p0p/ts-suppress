@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.4.0...ts-suppress-v0.5.0) (2026-03-28)
+
+
+### Features
+
+* **init:** add --ignore flag to update formatter ignore files ([#15](https://github.com/br0p0p/ts-suppress/issues/15)) ([079b736](https://github.com/br0p0p/ts-suppress/commit/079b736f19d1934454bbd8071991009772b88bda))
+
+
+### Bug Fixes
+
+* **cli:** read version from package.json instead of hardcoded string ([427b5dc](https://github.com/br0p0p/ts-suppress/commit/427b5dc3b7a3ff82b57f2683d477a40e3b064ce6))
+
 ## [0.4.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.3.0...ts-suppress-v0.4.0) (2026-03-28)
 
 
