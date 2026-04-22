@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.5.0...ts-suppress-v0.6.0) (2026-04-22)
+
+
+### Features
+
+* **check:** display unsuppressed errors in tsc format ([#17](https://github.com/br0p0p/ts-suppress/issues/17)) ([cdc2583](https://github.com/br0p0p/ts-suppress/commit/cdc2583a4be100260a2c314b0c75231b825545e2))
+
+
+### Documentation
+
+* document check exit codes for CI integration ([c8d134d](https://github.com/br0p0p/ts-suppress/commit/c8d134db5bcc42a3a32a7dd5d6ec71dbaebf717b))
+
+
+### Refactoring
+
+* **cli:** migrate argument parsing from mri to cac ([0566b89](https://github.com/br0p0p/ts-suppress/commit/0566b898b32322ea3decc28da49ff239017dd89c))
+
 ## [0.5.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.4.0...ts-suppress-v0.5.0) (2026-03-28)
 
 
