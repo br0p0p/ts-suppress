@@ -6,6 +6,12 @@ import { findNodeAtPosition } from "./ast.js";
 import type { Suppression } from "./types.js";
 import type { TsProject } from "./project.js";
 
+/** A diagnostic paired with its fingerprint. */
+export interface DiagnosticRecord {
+  suppression: Suppression;
+  diagnostic: ts.Diagnostic;
+}
+
 // Only the top-level message is used for fingerprinting; chained sub-messages
 // are diagnostic detail that varies with context and would produce unstable hashes.
 function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChain): string {
@@ -13,12 +19,13 @@ function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChai
 }
 
 /**
- * Collect all pre-emit diagnostics from a TypeScript Program as Suppression fingerprints.
- * Project creation is the caller's responsibility — this enables in-memory testing.
+ * Collect all pre-emit diagnostics from a TypeScript Program, paired with their
+ * Suppression fingerprints. Project creation is the caller's responsibility — this
+ * enables in-memory testing.
  */
-export function collectDiagnostics(project: TsProject, projectRoot: string): Suppression[] {
+export function collectDiagnostics(project: TsProject, projectRoot: string): DiagnosticRecord[] {
   const diagnostics = ts.getPreEmitDiagnostics(project.program);
-  const suppressions: Suppression[] = [];
+  const records: DiagnosticRecord[] = [];
 
   for (const diag of diagnostics) {
     const sourceFile = diag.file;
@@ -37,13 +44,16 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Sup
       }
     }
 
-    suppressions.push({
-      file: filePath,
-      code,
-      hash: hashMessage(message),
-      scope,
+    records.push({
+      suppression: {
+        file: filePath,
+        code,
+        hash: hashMessage(message),
+        scope,
+      },
+      diagnostic: diag,
     });
   }
 
-  return suppressions;
+  return records;
 }

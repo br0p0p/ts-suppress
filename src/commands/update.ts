@@ -20,7 +20,7 @@ export async function runUpdate(
   outputRoot: string = projectRoot,
 ): Promise<UpdateResult> {
   const existing = await readSuppressions(outputRoot);
-  const current = collectDiagnostics(project, projectRoot);
+  const current = collectDiagnostics(project, projectRoot).map((r) => r.suppression);
   const { unsuppressed: added, stale: removed } = diffSuppressions(existing, current);
 
   await writeSuppressions(outputRoot, current);

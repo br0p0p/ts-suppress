@@ -11,7 +11,7 @@ export async function runSuppress(
   projectRoot: string,
   outputRoot: string = projectRoot,
 ): Promise<void> {
-  const diagnostics = collectDiagnostics(project, projectRoot);
-  await writeSuppressions(outputRoot, diagnostics);
-  console.log(`Wrote ${diagnostics.length} suppression(s) to ${SUPPRESSIONS_FILENAME}`);
+  const suppressions = collectDiagnostics(project, projectRoot).map((r) => r.suppression);
+  await writeSuppressions(outputRoot, suppressions);
+  console.log(`Wrote ${suppressions.length} suppression(s) to ${SUPPRESSIONS_FILENAME}`);
 }
