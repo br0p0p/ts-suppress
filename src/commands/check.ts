@@ -13,7 +13,7 @@ export interface CheckResult {
 function createFormatHost(projectRoot: string): ts.FormatDiagnosticsHost {
   return {
     getCurrentDirectory: () => projectRoot,
-    getCanonicalFileName: (f) => f,
+    getCanonicalFileName: (f) => (ts.sys.useCaseSensitiveFileNames ? f : f.toLowerCase()),
     getNewLine: () => ts.sys.newLine,
   };
 }
@@ -43,13 +43,15 @@ export async function runCheck(
     const diagnostics: ts.Diagnostic[] = [];
     for (const s of unsuppressed) {
       const d = diagnosticBySuppression.get(s);
-      if (d) diagnostics.push(d);
+      if (!d) {
+        throw new Error(`missing diagnostic for suppression ${s.file}:TS${s.code}`);
+      }
+      diagnostics.push(d);
     }
     const host = createFormatHost(projectRoot);
-    const format = process.stderr.isTTY
-      ? ts.formatDiagnosticsWithColorAndContext
-      : ts.formatDiagnostics;
-    process.stderr.write(format(diagnostics, host));
+    const useColor = process.stderr.isTTY && !process.env["NO_COLOR"];
+    const formatter = useColor ? ts.formatDiagnosticsWithColorAndContext : ts.formatDiagnostics;
+    process.stderr.write(formatter(diagnostics, host));
     console.error(`${unsuppressed.length} unsuppressed error(s)`);
   }
 
