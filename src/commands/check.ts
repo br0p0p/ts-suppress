@@ -1,3 +1,4 @@
+import ts from "typescript";
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
 import { readSuppressions, diffSuppressions } from "../suppressions.js";
@@ -7,6 +8,14 @@ export interface CheckResult {
   exitCode: number;
   unsuppressed: Suppression[];
   stale: Suppression[];
+}
+
+function createFormatHost(projectRoot: string): ts.FormatDiagnosticsHost {
+  return {
+    getCurrentDirectory: () => projectRoot,
+    getCanonicalFileName: (f) => (ts.sys.useCaseSensitiveFileNames ? f : f.toLowerCase()),
+    getNewLine: () => ts.sys.newLine,
+  };
 }
 
 /**
@@ -19,14 +28,32 @@ export async function runCheck(
   suppressionsRoot: string = projectRoot,
 ): Promise<CheckResult> {
   const existing = await readSuppressions(suppressionsRoot);
-  const current = collectDiagnostics(project, projectRoot);
+  const records = collectDiagnostics(project, projectRoot);
+
+  const diagnosticBySuppression = new Map<Suppression, ts.Diagnostic>();
+  const current: Suppression[] = [];
+  for (const r of records) {
+    current.push(r.suppression);
+    diagnosticBySuppression.set(r.suppression, r.diagnostic);
+  }
+
   const { unsuppressed, stale } = diffSuppressions(existing, current);
 
   if (unsuppressed.length > 0) {
-    console.error(`\n${unsuppressed.length} unsuppressed error(s):\n`);
+    const diagnostics: ts.Diagnostic[] = [];
     for (const s of unsuppressed) {
-      console.error(`  TS${s.code} in ${s.file}`);
+      const d = diagnosticBySuppression.get(s);
+      if (!d) {
+        throw new Error(`missing diagnostic for suppression ${s.file}:TS${s.code}`);
+      }
+      diagnostics.push(d);
     }
+    const host = createFormatHost(projectRoot);
+    const useColor =
+      "NO_COLOR" in process.env ? false : !!process.env["FORCE_COLOR"] || !!process.stderr.isTTY;
+    const formatter = useColor ? ts.formatDiagnosticsWithColorAndContext : ts.formatDiagnostics;
+    process.stderr.write(formatter(diagnostics, host));
+    console.error(`${unsuppressed.length} unsuppressed error(s)`);
   }
 
   if (stale.length > 0) {

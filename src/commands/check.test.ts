@@ -65,3 +65,20 @@ test("check with no suppression file treats all errors as unsuppressed", async (
   expect(result.exitCode).toBe(1);
   expect(result.unsuppressed.length).toBeGreaterThan(0);
 });
+
+test("check prints unsuppressed errors in tsc format", async () => {
+  const chunks: string[] = [];
+  const origWrite = process.stderr.write.bind(process.stderr);
+  const write = ((chunk: string | Uint8Array) => {
+    chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return true;
+  }) as typeof process.stderr.write;
+  process.stderr.write = write;
+  try {
+    await runCheck(errorProject(), "/", tempDir);
+  } finally {
+    process.stderr.write = origWrite;
+  }
+  const output = chunks.join("");
+  expect(output).toMatch(/has-errors\.ts\(\d+,\d+\): error TS\d+:/);
+});
