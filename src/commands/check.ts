@@ -49,11 +49,8 @@ export async function runCheck(
       diagnostics.push(d);
     }
     const host = createFormatHost(projectRoot);
-    const useColor = process.env["NO_COLOR"]
-      ? false
-      : process.env["FORCE_COLOR"]
-        ? true
-        : !!process.stderr.isTTY;
+    const useColor =
+      "NO_COLOR" in process.env ? false : !!process.env["FORCE_COLOR"] || !!process.stderr.isTTY;
     const formatter = useColor ? ts.formatDiagnosticsWithColorAndContext : ts.formatDiagnostics;
     process.stderr.write(formatter(diagnostics, host));
     console.error(`${unsuppressed.length} unsuppressed error(s)`);
