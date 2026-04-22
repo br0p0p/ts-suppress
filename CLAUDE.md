@@ -6,6 +6,7 @@ CLI tool for incremental TypeScript strictness adoption via bulk error suppressi
 
 ```bash
 pnpm run build        # Compile with tsc (tsconfig.build.json)
+pnpm run dev          # Run the CLI from source via tsx (e.g. `pnpm dev check`)
 pnpm test             # Run tests (vitest)
 pnpm run typecheck    # Type-check without emitting
 pnpm run lint         # Lint with oxlint
