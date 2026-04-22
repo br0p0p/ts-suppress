@@ -63,6 +63,8 @@ The `check` command diffs the current diagnostics against the suppression file a
 - **Unsuppressed errors** — new errors not yet in the suppression file
 - **Stale suppressions** — entries that no longer match any current error (i.e. errors that have been fixed)
 
+`check` exits `0` when both lists are empty and `1` otherwise, so it plugs directly into CI.
+
 ## Comparison with ts-bulk-suppress
 
 ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok and shares the same core idea: capture TypeScript errors into an external file instead of scattering `@ts-ignore` comments. The two tools take different approaches to the problem.
