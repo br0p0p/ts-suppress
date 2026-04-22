@@ -19,7 +19,7 @@ pnpm run knip         # Find unused exports/dependencies
 
 ```
 src/
-  cli.ts              # Entry point, command routing via mri
+  cli.ts              # Entry point, command routing via cac
   commands/
     init.ts            # Initialize .ts-suppressions.json
     suppress.ts        # Capture current TS errors into suppressions
@@ -38,7 +38,7 @@ src/
 ## Key Dependencies
 
 - **typescript** (peer) — Compiler API for diagnostics and AST traversal (used directly, no wrapper)
-- **mri** — CLI argument parsing. Don't use `commander`, `yargs`, or `gunshi`.
+- **cac** — CLI argument parsing. Don't use `commander`, `yargs`, `gunshi`, or `mri`.
 
 ## Code Style
 

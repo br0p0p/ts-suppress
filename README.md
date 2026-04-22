@@ -73,7 +73,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 | **Error identification** | file + error code + message hash + scope                   | file + error code + scope                                             |
 | **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API | Wraps/intercepts tsc output                                           |
 | **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`   | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
-| **Runtime dependencies** | 1 (mri) + TypeScript as peer dep                           | 37 packages                                                           |
+| **Runtime dependencies** | 1 (cac) + TypeScript as peer dep                           | 37 packages                                                           |
 | **Maintenance**          | Actively maintained                                        | [Last published 2024](https://www.npmjs.com/package/ts-bulk-suppress) |
 
 ### Key differences
