@@ -66,6 +66,35 @@ test("check with no suppression file treats all errors as unsuppressed", async (
   expect(result.unsuppressed.length).toBeGreaterThan(0);
 });
 
+test("suppression survives an unrelated edit to the same file (full round-trip)", async () => {
+  // This is the original reported bug in concentrated form: a suppression is
+  // captured for an error whose message embeds a large inferred structural
+  // type (mirroring the real-world case where <TailwindProvider utilities=...>
+  // caused TS to dump the tailwind.json shape into the error). An edit
+  // elsewhere in the file grows that inferred type, which rewrites the
+  // rendered type string inside the error message. Before the fix, that
+  // rewrites the hash and the suppression goes stale even though the
+  // suppressed code was never touched.
+  const before = `
+    const utilities = { a: 1, b: 2, c: 3 };
+    export const bad: number = { x: 1, ...utilities };
+  `;
+  // Only change: add keys to 'utilities'. The 'bad' assignment is untouched,
+  // but TS inlines the spread shape into the rendered type in the error
+  // message, so the pre-fix hash depended on which keys 'utilities' had.
+  const after = `
+    const utilities = { a: 1, b: 2, c: 3, d: 4, e: 5 };
+    export const bad: number = { x: 1, ...utilities };
+  `;
+
+  await runSuppress(createInMemoryProject({ "app.ts": before }), "/", tempDir);
+  const result = await runCheck(createInMemoryProject({ "app.ts": after }), "/", tempDir);
+
+  expect(result.unsuppressed).toEqual([]);
+  expect(result.stale).toEqual([]);
+  expect(result.exitCode).toBe(0);
+});
+
 test("check prints unsuppressed errors in tsc format", async () => {
   const chunks: string[] = [];
   const origWrite = process.stderr.write.bind(process.stderr);
