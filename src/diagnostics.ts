@@ -19,7 +19,7 @@ export interface DiagnosticRecord {
 // characters so the hash depends on the error template and short type names only.
 const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 
-function normalizeMessageForHash(message: string): string {
+export function normalizeMessageForHash(message: string): string {
   return message.replace(STRUCTURAL_QUOTED, "'<elided>'");
 }
 
