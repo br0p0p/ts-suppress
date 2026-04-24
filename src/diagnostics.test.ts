@@ -240,7 +240,8 @@ describe("TS diagnostic normalization (integration)", () => {
       label: "TS2367: string literal comparison with no overlap",
       source: `const a: "a" = "a"; if (a === "b") {}`,
       code: 2367,
-      rawIncludes: /This (comparison|condition)/,
+      rawIncludes:
+        /This comparison appears to be unintentional because the types '"a"' and '"b"' have no overlap\./,
       normalized: `This comparison appears to be unintentional because the types '"a"' and '"b"' have no overlap.`,
     },
   ];
@@ -251,6 +252,22 @@ describe("TS diagnostic normalization (integration)", () => {
     expect(hit, `expected a TS${code} diagnostic, got: ${JSON.stringify(msgs)}`).toBeDefined();
     expect(hit!.raw).toMatch(rawIncludes);
     expect(normalizeMessageForHash(hit!.raw)).toBe(normalized);
+  });
+
+  test("TS2551: did-you-mean suggestion drives the hash, not the object shape", () => {
+    // The TS2551 normalization elides the object type but preserves the
+    // 'foo' suggestion. Mutating only the object shape must therefore leave
+    // the hash unchanged — the suggestion carries the entire signal.
+    const small = rawMessages({ "t.ts": `const x = { foo: 1 }; x.fooo;` }).find(
+      (m) => m.code === 2551,
+    );
+    const big = rawMessages({
+      "t.ts": `const x = { foo: 1, bar: "hi", baz: true }; x.fooo;`,
+    }).find((m) => m.code === 2551);
+    expect(small).toBeDefined();
+    expect(big).toBeDefined();
+    expect(small!.raw).not.toBe(big!.raw); // raw really did change
+    expect(normalizeMessageForHash(small!.raw)).toBe(normalizeMessageForHash(big!.raw));
   });
 });
 

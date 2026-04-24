@@ -17,14 +17,16 @@ export interface DiagnosticRecord {
 // preferences, inferred return types, and truncation budgets all shift with edits
 // elsewhere in the file. Elide any single-quoted span that contains structural
 // characters so the hash depends on the error template and short type names only.
+//
+// Triggers: `{` and `}` enclose object/intersection types — always structural.
+// `...` appears in two places: TS's truncation marker (`'... 402 more ...'`,
+// suppressed by noErrorTruncation but kept as defence-in-depth) and rest/
+// variadic type rendering (`'...string[]'`, `'[number, ...T[]]'`). The latter
+// are short but always structural by nature, so eliding them is fine.
 const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 
 export function normalizeMessageForHash(message: string): string {
   return message.replace(STRUCTURAL_QUOTED, "'<elided>'");
-}
-
-function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChain): string {
-  return ts.flattenDiagnosticMessageText(messageText, "\n");
 }
 
 /**
@@ -42,7 +44,9 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
 
     const filePath = relative(projectRoot, sourceFile.fileName);
     const code = diag.code;
-    const message = normalizeMessageForHash(flattenDiagnosticMessage(diag.messageText));
+    const message = normalizeMessageForHash(
+      ts.flattenDiagnosticMessageText(diag.messageText, "\n"),
+    );
 
     const start = diag.start;
     let scope = "";
