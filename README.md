@@ -55,7 +55,7 @@ Each suppression is a fingerprint of a TypeScript error, consisting of:
 
 - **file** — relative path to the source file
 - **code** — TypeScript error code (e.g. `2322`)
-- **hash** — hex hash of the diagnostic message text
+- **hash** — SHA-256 hash of the diagnostic message with stringified types elided. Single-quoted spans containing `{`, `}`, or `...` (i.e. structural/inferred types) are replaced with `'<elided>'` before hashing, so the hash captures the error template and short type names but ignores the inferred type rendering — which TypeScript reflows from whole-file context and would otherwise change with unrelated edits.
 - **scope** — dot-separated scope chain (e.g. `MyClass.myMethod`)
 
 The `check` command diffs the current diagnostics against the suppression file and reports:
@@ -72,7 +72,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 |                          | ts-suppress                                                | ts-bulk-suppress                                                      |
 | ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------- |
 | **Suppression file**     | Single `.ts-suppressions.json`                             | `.ts-bulk-suppressions.json`                                          |
-| **Error identification** | file + error code + message hash + scope                   | file + error code + scope                                             |
+| **Error identification** | file + error code + normalized message hash + scope        | file + error code + scope                                             |
 | **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API | Wraps/intercepts tsc output                                           |
 | **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`   | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
 | **Runtime dependencies** | 1 (cac) + TypeScript as peer dep                           | 37 packages                                                           |
@@ -80,7 +80,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 
 ### Key differences
 
-- **Hash-based fingerprinting** — ts-suppress includes a SHA-256 hash of the diagnostic message text in each suppression entry. This means two errors on the same line with the same error code but different messages are tracked independently, reducing false matches.
+- **Hash-based fingerprinting** — ts-suppress includes a SHA-256 hash of the diagnostic message in each suppression entry, with structural/inferred type renderings elided so the hash stays stable across unrelated edits in the same file. Two errors with the same error code in the same scope but different error templates (or different short type names) still hash differently, so they're tracked independently.
 - **No tsc patching** — ts-suppress uses the TypeScript compiler API directly to collect diagnostics rather than wrapping or intercepting tsc. This avoids coupling to tsc's output format.
 - **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`) is a separate command rather than a flag, making the workflow easier to script and understand.
 
