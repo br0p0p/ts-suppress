@@ -60,3 +60,45 @@ test("error inside a class method has class.method scope", () => {
   const results = collectDiagnostics(project, "/");
   expect(results[0]?.suppression.scope).toBe("Svc.run");
 });
+
+test("hash is stable when unrelated code in the same file changes", () => {
+  // The diagnostic is inside `target`; the edit adds a sibling declaration and
+  // renames an unrelated enum member that flows into the error message via the
+  // inferred return type. Before the fix this would rewrite the rendered type
+  // string and change the hash.
+  const before = createInMemoryProject({
+    "a.ts": `
+      export enum Page { LOGIN = 'LOGIN', CREATE_ORDER_LEGACY = 'CREATE_ORDER_LEGACY' }
+      type Params = { [Page.LOGIN]: {}; [Page.CREATE_ORDER_LEGACY]: {} };
+      function target(): Params { return { extra: {} } as any; }
+      export const bad: number = target();
+    `,
+  });
+  const after = createInMemoryProject({
+    "a.ts": `
+      const sibling = 1;
+      export enum Page { LOGIN = 'LOGIN', CREATE_ORDER = 'CREATE_ORDER' }
+      type Params = { [Page.LOGIN]: {}; [Page.CREATE_ORDER]: {} };
+      function target(): Params { return { extra: {} } as any; }
+      export const bad: number = target();
+    `,
+  });
+
+  const beforeHashes = collectDiagnostics(before, "/").map((r) => r.suppression.hash);
+  const afterHashes = collectDiagnostics(after, "/").map((r) => r.suppression.hash);
+  expect(beforeHashes).toEqual(afterHashes);
+});
+
+test("structural type renderings are elided from the hash", () => {
+  // Two files with different but structurally-huge inferred types. The hash
+  // must not depend on the stringified shape.
+  const shapeA = createInMemoryProject({
+    "a.ts": `export const bad: number = { aa: 1, bb: 2 };`,
+  });
+  const shapeB = createInMemoryProject({
+    "a.ts": `export const bad: number = { xx: 1, yy: 2, zz: 3 };`,
+  });
+  const a = collectDiagnostics(shapeA, "/")[0]?.suppression.hash;
+  const b = collectDiagnostics(shapeB, "/")[0]?.suppression.hash;
+  expect(a).toBe(b);
+});

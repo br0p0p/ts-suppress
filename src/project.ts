@@ -34,7 +34,13 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
   if (parsed.errors.length > 0) {
     throw new Error(ts.flattenDiagnosticMessageText(parsed.errors[0]!.messageText, "\n"));
   }
-  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  // noErrorTruncation keeps diagnostic messages stable: TS's default truncation
+  // budget can shift based on file-wide type rendering, which changes the hash
+  // for completely unrelated edits.
+  const program = ts.createProgram(parsed.fileNames, {
+    ...parsed.options,
+    noErrorTruncation: true,
+  });
 
   return { project: { program }, projectRoot };
 }

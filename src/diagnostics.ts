@@ -12,10 +12,19 @@ export interface DiagnosticRecord {
   diagnostic: ts.Diagnostic;
 }
 
-// Only the top-level message is used for fingerprinting; chained sub-messages
-// are diagnostic detail that varies with context and would produce unstable hashes.
+// TS diagnostic messages embed stringified types (e.g. "Type '{ a: number; }' is
+// not assignable to type 'Foo'") that are rendered from whole-file context: alias
+// preferences, inferred return types, and truncation budgets all shift with edits
+// elsewhere in the file. Elide any single-quoted span that contains structural
+// characters so the hash depends on the error template and short type names only.
+const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
+
+function normalizeMessageForHash(message: string): string {
+  return message.replace(STRUCTURAL_QUOTED, "'<elided>'");
+}
+
 function flattenDiagnosticMessage(messageText: string | ts.DiagnosticMessageChain): string {
-  return typeof messageText === "string" ? messageText : messageText.messageText;
+  return ts.flattenDiagnosticMessageText(messageText, "\n");
 }
 
 /**
@@ -33,7 +42,7 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
 
     const filePath = relative(projectRoot, sourceFile.fileName);
     const code = diag.code;
-    const message = flattenDiagnosticMessage(diag.messageText);
+    const message = normalizeMessageForHash(flattenDiagnosticMessage(diag.messageText));
 
     const start = diag.start;
     let scope = "";

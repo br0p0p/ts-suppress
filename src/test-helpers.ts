@@ -16,6 +16,7 @@ export function createInMemoryProject(files: Record<string, string>): TsProject 
     lib: ["lib.esnext.d.ts"],
     moduleDetection: ts.ModuleDetectionKind.Force,
     types: [],
+    noErrorTruncation: true,
   };
 
   const host = ts.createCompilerHost(options);
