@@ -160,19 +160,20 @@ const unrelatedEditCases: ReadonlyArray<{ label: string; before: string; after: 
     `,
   },
   {
-    label: "rename a variable used as a computed key (Page enum analogue)",
-    // Closest to the original App.tsx bug: the user renamed Page.CREATE_ORDER_LEGACY
-    // → Page.CREATE_ORDER, which flowed through keyof into an unrelated error.
+    label: "rename a variable used as a computed key",
+    // The original reported bug had this shape: a string-valued enum member was
+    // renamed elsewhere, and the new name flowed through keyof into an
+    // unrelated error's rendered type.
     before: `
-      const Page_LOGIN = 'LOGIN';
-      const Page_LEGACY = 'CREATE_ORDER_LEGACY';
-      const params = { [Page_LOGIN]: 0, [Page_LEGACY]: 0 };
+      const KEY_A = 'A';
+      const KEY_OLD = 'OLD_NAME';
+      const params = { [KEY_A]: 0, [KEY_OLD]: 0 };
       export const bad: number = { ...params, extra: 1 };
     `,
     after: `
-      const Page_LOGIN = 'LOGIN';
-      const Page_RENAMED = 'CREATE_ORDER';
-      const params = { [Page_LOGIN]: 0, [Page_RENAMED]: 0 };
+      const KEY_A = 'A';
+      const KEY_NEW = 'NEW_NAME';
+      const params = { [KEY_A]: 0, [KEY_NEW]: 0 };
       export const bad: number = { ...params, extra: 1 };
     `,
   },

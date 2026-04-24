@@ -74,34 +74,6 @@ test("error inside a class method has class.method scope", () => {
   expect(results[0]?.suppression.scope).toBe("Svc.run");
 });
 
-test("hash is stable when unrelated code in the same file changes", () => {
-  // The diagnostic is inside `target`; the edit adds a sibling declaration and
-  // renames an unrelated enum member that flows into the error message via the
-  // inferred return type. Before the fix this would rewrite the rendered type
-  // string and change the hash.
-  const before = createInMemoryProject({
-    "a.ts": `
-      export enum Page { LOGIN = 'LOGIN', CREATE_ORDER_LEGACY = 'CREATE_ORDER_LEGACY' }
-      type Params = { [Page.LOGIN]: {}; [Page.CREATE_ORDER_LEGACY]: {} };
-      function target(): Params { return { extra: {} } as any; }
-      export const bad: number = target();
-    `,
-  });
-  const after = createInMemoryProject({
-    "a.ts": `
-      const sibling = 1;
-      export enum Page { LOGIN = 'LOGIN', CREATE_ORDER = 'CREATE_ORDER' }
-      type Params = { [Page.LOGIN]: {}; [Page.CREATE_ORDER]: {} };
-      function target(): Params { return { extra: {} } as any; }
-      export const bad: number = target();
-    `,
-  });
-
-  const beforeHashes = collectDiagnostics(before, "/").map((r) => r.suppression.hash);
-  const afterHashes = collectDiagnostics(after, "/").map((r) => r.suppression.hash);
-  expect(beforeHashes).toEqual(afterHashes);
-});
-
 test("structural type renderings are elided from the hash", () => {
   // Two files with different but structurally-huge inferred types. The hash
   // must not depend on the stringified shape.
@@ -279,62 +251,6 @@ describe("TS diagnostic normalization (integration)", () => {
     expect(hit, `expected a TS${code} diagnostic, got: ${JSON.stringify(msgs)}`).toBeDefined();
     expect(hit!.raw).toMatch(rawIncludes);
     expect(normalizeMessageForHash(hit!.raw)).toBe(normalized);
-  });
-});
-
-describe("hash stability under realistic edits", () => {
-  // Each case asserts the suppression hash for the target error is unchanged
-  // after an "unrelated" modification elsewhere in the file.
-  const pairs: ReadonlyArray<{ label: string; before: string; after: string }> = [
-    {
-      label: "add unrelated sibling declarations",
-      before: `
-        function target(): number { return "bad" as any; }
-        export const bad: number = target() as unknown as { a: 1 };
-      `,
-      after: `
-        const unrelated1 = 1;
-        const unrelated2 = { whatever: "stuff" };
-        function target(): number { return "bad" as any; }
-        export const bad: number = target() as unknown as { a: 1 };
-      `,
-    },
-    {
-      label: "rename an enum member that flows through a mapped type",
-      before: `
-        export enum Page { LOGIN = 'LOGIN', CREATE_ORDER_LEGACY = 'CREATE_ORDER_LEGACY' }
-        type Params = { [Page.LOGIN]: {}; [Page.CREATE_ORDER_LEGACY]: {} };
-        function target(): Params { return { extra: {} } as any; }
-        export const bad: number = target();
-      `,
-      after: `
-        export enum Page { LOGIN = 'LOGIN', CREATE_ORDER = 'CREATE_ORDER' }
-        type Params = { [Page.LOGIN]: {}; [Page.CREATE_ORDER]: {} };
-        function target(): Params { return { extra: {} } as any; }
-        export const bad: number = target();
-      `,
-    },
-    {
-      label: "grow an object literal elsewhere in the file",
-      before: `
-        export const big = { a: 1, b: 2 };
-        export const bad: number = { x: 1 };
-      `,
-      after: `
-        export const big = { a: 1, b: 2, c: 3, d: 4, e: 5 };
-        export const bad: number = { x: 1 };
-      `,
-    },
-  ];
-
-  test.each(pairs)("$label", ({ before, after }) => {
-    const beforeHashes = collectDiagnostics(createInMemoryProject({ "a.ts": before }), "/").map(
-      (r) => r.suppression.hash,
-    );
-    const afterHashes = collectDiagnostics(createInMemoryProject({ "a.ts": after }), "/").map(
-      (r) => r.suppression.hash,
-    );
-    expect(beforeHashes).toEqual(afterHashes);
   });
 });
 
