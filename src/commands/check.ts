@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
+import { logger } from "../logger.js";
 import { readSuppressions, diffSuppressions } from "../suppressions.js";
 import type { Suppression } from "../types.js";
 
@@ -48,25 +49,27 @@ export async function runCheck(
       }
       diagnostics.push(d);
     }
-    const host = createFormatHost(projectRoot);
-    const useColor =
-      "NO_COLOR" in process.env ? false : !!process.env["FORCE_COLOR"] || !!process.stderr.isTTY;
-    const formatter = useColor ? ts.formatDiagnosticsWithColorAndContext : ts.formatDiagnostics;
-    process.stderr.write(formatter(diagnostics, host));
-    console.error(`${unsuppressed.length} unsuppressed error(s)`);
+    if (logger.level >= 0) {
+      const host = createFormatHost(projectRoot);
+      const useColor =
+        "NO_COLOR" in process.env ? false : !!process.env["FORCE_COLOR"] || !!process.stderr.isTTY;
+      const formatter = useColor ? ts.formatDiagnosticsWithColorAndContext : ts.formatDiagnostics;
+      process.stderr.write(formatter(diagnostics, host));
+    }
+    logger.error(`${unsuppressed.length} unsuppressed error(s)`);
   }
 
   if (stale.length > 0) {
-    console.error(`\n${stale.length} stale suppression(s):\n`);
+    logger.error(`\n${stale.length} stale suppression(s):\n`);
     for (const s of stale) {
-      console.error(`  TS${s.code} in ${s.file}`);
+      logger.error(`  TS${s.code} in ${s.file}`);
     }
   }
 
   const exitCode = unsuppressed.length > 0 || stale.length > 0 ? 1 : 0;
 
   if (exitCode === 0) {
-    console.log("No unsuppressed errors or stale suppressions.");
+    logger.log("No unsuppressed errors or stale suppressions.");
   }
 
   return { exitCode, unsuppressed, stale };

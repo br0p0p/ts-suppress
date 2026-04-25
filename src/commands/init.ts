@@ -1,17 +1,18 @@
 import { createInterface } from "node:readline/promises";
+import { logger } from "../logger.js";
 import { writeSuppressions, SUPPRESSIONS_FILENAME } from "../suppressions.js";
 import { detectIgnoreFiles, addToIgnoreFile } from "../ignore.js";
 
 export async function runInit(ignore?: boolean) {
   const cwd = process.cwd();
   await writeSuppressions(cwd, []);
-  console.log(`Created ${SUPPRESSIONS_FILENAME}`);
+  logger.log(`Created ${SUPPRESSIONS_FILENAME}`);
 
   const detected = await detectIgnoreFiles(cwd);
 
   if (detected.length === 0) {
     if (ignore !== false) {
-      console.log(
+      logger.log(
         `\nTip: Add ${SUPPRESSIONS_FILENAME} to your formatter's ignore list (e.g. .prettierignore, .oxfmtignore) to preserve its compact format.`,
       );
     }
@@ -26,7 +27,7 @@ export async function runInit(ignore?: boolean) {
     for (const file of detected) {
       const added = await addToIgnoreFile(cwd, file);
       if (added) {
-        console.log(`Added ${SUPPRESSIONS_FILENAME} to ${file}`);
+        logger.log(`Added ${SUPPRESSIONS_FILENAME} to ${file}`);
       }
     }
     return;
@@ -40,7 +41,7 @@ export async function runInit(ignore?: boolean) {
       if (answer.toLowerCase() !== "n") {
         const added = await addToIgnoreFile(cwd, file);
         if (added) {
-          console.log(`Added ${SUPPRESSIONS_FILENAME} to ${file}`);
+          logger.log(`Added ${SUPPRESSIONS_FILENAME} to ${file}`);
         }
       }
     }

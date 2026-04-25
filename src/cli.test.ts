@@ -217,6 +217,44 @@ test.concurrent("fix produces identical file to update", () =>
     expect(fixStdout).toBe(updateStdout);
   }));
 
+// --- Log level ---
+
+test.concurrent("--log-level debug traces hash transformation on stderr", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stderr } = await run(["suppress", "--log-level", "debug"], tempDir);
+    expect(exitCode).toBe(0);
+    // Debug lines are tagged so they don't get confused with normal output.
+    expect(stderr).toContain("[debug]");
+    // Each diagnostic logs its raw message, normalized form, and short hash.
+    expect(stderr).toContain("hash=");
+    expect(stderr).toContain("raw=");
+    expect(stderr).toContain("normalized=");
+    expect(stderr).toMatch(/TS\d+/);
+  }));
+
+test.concurrent("default log level emits no [debug] lines", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout, stderr } = await run(["suppress"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).not.toContain("[debug]");
+    expect(stderr).not.toContain("[debug]");
+  }));
+
+test.concurrent("--log-level silent suppresses normal output", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout, stderr } = await run(["suppress", "--log-level", "silent"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  }));
+
+test.concurrent("--log-level rejects unknown values", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stderr } = await run(["suppress", "--log-level", "loud"], tempDir);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("Unknown log level");
+  }));
+
 // --- Error handling ---
 
 test.concurrent("update with missing tsconfig exits 1 with clear error", async () => {

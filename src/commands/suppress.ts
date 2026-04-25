@@ -1,5 +1,6 @@
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
+import { logger } from "../logger.js";
 import { writeSuppressions, SUPPRESSIONS_FILENAME } from "../suppressions.js";
 
 /**
@@ -13,5 +14,5 @@ export async function runSuppress(
 ): Promise<void> {
   const suppressions = collectDiagnostics(project, projectRoot).map((r) => r.suppression);
   await writeSuppressions(outputRoot, suppressions);
-  console.log(`Wrote ${suppressions.length} suppression(s) to ${SUPPRESSIONS_FILENAME}`);
+  logger.log(`Wrote ${suppressions.length} suppression(s) to ${SUPPRESSIONS_FILENAME}`);
 }

@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { relative } from "node:path";
 import { hashMessage } from "./hash.js";
+import { logger } from "./logger.js";
 import { buildScopePath } from "./scope.js";
 import { findNodeAtPosition } from "./ast.js";
 import type { Suppression } from "./types.js";
@@ -44,9 +45,9 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
 
     const filePath = relative(projectRoot, sourceFile.fileName);
     const code = diag.code;
-    const message = normalizeMessageForHash(
-      ts.flattenDiagnosticMessageText(diag.messageText, "\n"),
-    );
+    const rawMessage = ts.flattenDiagnosticMessageText(diag.messageText, "\n");
+    const message = normalizeMessageForHash(rawMessage);
+    const hash = hashMessage(message);
 
     const start = diag.start;
     let scope = "";
@@ -57,13 +58,16 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
       }
     }
 
+    if (logger.level >= 4) {
+      logger.debug(
+        `${filePath} TS${code} hash=${hash.slice(0, 12)} scope=${scope || "<module>"}\n` +
+          `  raw=${JSON.stringify(rawMessage)}\n` +
+          `  normalized=${JSON.stringify(message)}`,
+      );
+    }
+
     records.push({
-      suppression: {
-        file: filePath,
-        code,
-        hash: hashMessage(message),
-        scope,
-      },
+      suppression: { file: filePath, code, hash, scope },
       diagnostic: diag,
     });
   }

@@ -45,7 +45,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cac": "^7.0.0"
+    "cac": "^7.0.0",
+    "consola": "^3.4.2"
   },
   "devDependencies": {
     "@types/node": "^24",
