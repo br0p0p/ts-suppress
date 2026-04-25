@@ -40,6 +40,8 @@ npx ts-suppress check
 npx ts-suppress update
 ```
 
+Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to trace each diagnostic's raw message, normalized form, and hash — handy when investigating why two suppressions collide or shift across edits.
+
 ## Typical Workflow
 
 1. Enable a stricter TypeScript option (e.g. `"strict": true`)
@@ -75,7 +77,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 | **Error identification** | file + error code + normalized message hash + scope        | file + error code + scope                                             |
 | **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API | Wraps/intercepts tsc output                                           |
 | **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`   | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
-| **Runtime dependencies** | 1 (cac) + TypeScript as peer dep                           | 37 packages                                                           |
+| **Runtime dependencies** | 2 (cac, consola) + TypeScript as peer dep                  | 37 packages                                                           |
 | **Maintenance**          | Actively maintained                                        | [Last published 2024](https://www.npmjs.com/package/ts-bulk-suppress) |
 
 ### Key differences
