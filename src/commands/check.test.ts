@@ -66,6 +66,131 @@ test("check with no suppression file treats all errors as unsuppressed", async (
   expect(result.unsuppressed.length).toBeGreaterThan(0);
 });
 
+// Suite for the original reported bug: a suppression is captured for an error
+// whose message embeds a large inferred structural type (mirroring the
+// real-world case where <TailwindProvider utilities={utilities}> caused TS to
+// dump the tailwind.json shape into the error). An edit elsewhere in the file
+// changes that rendered type in the error message. Before the fix, the hash
+// follows the message and the suppression goes stale even though the
+// suppressed code was never touched.
+//
+// Each fixture here has been verified to produce a raw message that actually
+// differs between `before` and `after` — they are real regressions, not no-ops.
+const unrelatedEditCases: ReadonlyArray<{ label: string; before: string; after: string }> = [
+  {
+    label: "add keys to an object spread into the erroring assignment",
+    before: `
+      const utilities = { a: 1, b: 2, c: 3 };
+      export const bad: number = { x: 1, ...utilities };
+    `,
+    after: `
+      const utilities = { a: 1, b: 2, c: 3, d: 4, e: 5 };
+      export const bad: number = { x: 1, ...utilities };
+    `,
+  },
+  {
+    label: "rename a property in the spread source",
+    before: `
+      const config = { foo: 1, bar: 2 };
+      export const bad: number = { ...config };
+    `,
+    after: `
+      const config = { fooRenamed: 1, bar: 2 };
+      export const bad: number = { ...config };
+    `,
+  },
+  {
+    label: "reorder properties in the spread source",
+    before: `
+      const x = { a: 1, b: 2, c: 3 };
+      export const bad: number = { ...x };
+    `,
+    after: `
+      const x = { c: 3, a: 1, b: 2 };
+      export const bad: number = { ...x };
+    `,
+  },
+  {
+    label: "change the return type of a helper used in the erroring assignment",
+    before: `
+      function helper() { return { a: 1, b: 2 }; }
+      export const bad: number = helper();
+    `,
+    after: `
+      function helper() { return { a: 1, b: 2, c: 3 }; }
+      export const bad: number = helper();
+    `,
+  },
+  {
+    label: "change a string-literal value propagated via 'as const'",
+    // This is the original App.tsx shape: a string literal that flows into a
+    // type the error message renders. Changing the literal rewrites the raw
+    // message; the structural span is still elided so the hash holds.
+    before: `
+      const config = { tag: "A" as const, count: 1 };
+      export const bad: number = { ...config };
+    `,
+    after: `
+      const config = { tag: "B" as const, count: 1 };
+      export const bad: number = { ...config };
+    `,
+  },
+  {
+    label: "change a string-literal value in a declared literal type",
+    before: `
+      const config: { tag: "old"; count: number } = { tag: "old", count: 1 };
+      export const bad: number = { ...config };
+    `,
+    after: `
+      const config: { tag: "new"; count: number } = { tag: "new", count: 1 };
+      export const bad: number = { ...config };
+    `,
+  },
+  {
+    label: "change an enum member's string value that flows through a computed key",
+    before: `
+      enum E { One = "ONE", Two = "TWO" }
+      const obj = { [E.One]: 1, [E.Two]: 2 };
+      export const bad: number = { ...obj };
+    `,
+    after: `
+      enum E { One = "ONE", Two = "RENAMED" }
+      const obj = { [E.One]: 1, [E.Two]: 2 };
+      export const bad: number = { ...obj };
+    `,
+  },
+  {
+    label: "rename a variable used as a computed key",
+    // The original reported bug had this shape: a string-valued enum member was
+    // renamed elsewhere, and the new name flowed through keyof into an
+    // unrelated error's rendered type.
+    before: `
+      const KEY_A = 'A';
+      const KEY_OLD = 'OLD_NAME';
+      const params = { [KEY_A]: 0, [KEY_OLD]: 0 };
+      export const bad: number = { ...params, extra: 1 };
+    `,
+    after: `
+      const KEY_A = 'A';
+      const KEY_NEW = 'NEW_NAME';
+      const params = { [KEY_A]: 0, [KEY_NEW]: 0 };
+      export const bad: number = { ...params, extra: 1 };
+    `,
+  },
+];
+
+test.each(unrelatedEditCases)(
+  "suppression survives unrelated edit: $label",
+  async ({ before, after }) => {
+    await runSuppress(createInMemoryProject({ "app.ts": before }), "/", tempDir);
+    const result = await runCheck(createInMemoryProject({ "app.ts": after }), "/", tempDir);
+
+    expect(result.unsuppressed).toEqual([]);
+    expect(result.stale).toEqual([]);
+    expect(result.exitCode).toBe(0);
+  },
+);
+
 test("check prints unsuppressed errors in tsc format", async () => {
   const chunks: string[] = [];
   const origWrite = process.stderr.write.bind(process.stderr);
