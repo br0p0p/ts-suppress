@@ -1,5 +1,5 @@
 import { createConsola, type ConsolaReporter } from "consola";
-import { format } from "node:util";
+import { format, styleText } from "node:util";
 
 const LEVELS = {
   silent: Number.NEGATIVE_INFINITY,
@@ -24,10 +24,19 @@ const plainReporter: ConsolaReporter = {
     const text = format(...(logObj.args as unknown[]));
     const isDiag = logObj.type === "debug" || logObj.type === "trace";
     const stream = logObj.level <= 1 || isDiag ? process.stderr : process.stdout;
-    const prefix = isDiag ? `[${logObj.type}] ` : "";
+    const prefix = isDiag ? styleStderr("dim", `[${logObj.type}] `) : "";
     stream.write(prefix + text + "\n");
   },
 };
+
+/**
+ * Color helper for stderr-bound output. `styleText` with the stderr stream
+ * auto-detects TTY / NO_COLOR / FORCE_COLOR and returns plain text when
+ * coloring would be inappropriate (e.g. piped output, CI, tests).
+ */
+export function styleStderr(format: Parameters<typeof styleText>[0], text: string): string {
+  return styleText(format, text, { stream: process.stderr });
+}
 
 export const logger = createConsola({
   level: LEVELS.info,

@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { relative } from "node:path";
 import { hashMessage } from "./hash.js";
-import { logger } from "./logger.js";
+import { logger, styleStderr } from "./logger.js";
 import { buildScopePath } from "./scope.js";
 import { findNodeAtPosition } from "./ast.js";
 import type { Suppression } from "./types.js";
@@ -28,6 +28,42 @@ const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 
 export function normalizeMessageForHash(message: string): string {
   return message.replace(STRUCTURAL_QUOTED, "'<elided>'");
+}
+
+/**
+ * Render a debug-level transformation trace as a header line plus aligned
+ * `key  value` rows. Multi-line values are continuation-indented to the value
+ * column so chained TS sub-messages stay readable.
+ */
+function formatDebugRecord(
+  filePath: string,
+  code: number,
+  scope: string,
+  hash: string,
+  raw: string,
+  normalized: string,
+): string {
+  const LABEL_WIDTH = 10; // longest label = "normalized"
+  const continuation = " ".repeat(2 + LABEL_WIDTH + 2);
+  const field = (label: string, value: string): string => {
+    const lines = value.split("\n");
+    const labelText = styleStderr("dim", label.padEnd(LABEL_WIDTH));
+    return [`  ${labelText}  ${lines[0]}`, ...lines.slice(1).map((l) => continuation + l)].join(
+      "\n",
+    );
+  };
+
+  const location = scope
+    ? `${styleStderr("cyan", filePath)}${styleStderr("dim", ":")}${styleStderr("magenta", scope)}`
+    : styleStderr("cyan", filePath);
+  const header = `${location} ${styleStderr("yellow", `TS${code}`)}`;
+
+  return [
+    header,
+    field("hash", hash.slice(0, 12)),
+    field("raw", raw),
+    field("normalized", normalized),
+  ].join("\n");
 }
 
 /**
@@ -59,11 +95,7 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
     }
 
     if (logger.level >= 4) {
-      logger.debug(
-        `${filePath} TS${code} hash=${hash.slice(0, 12)} scope=${scope || "<module>"}\n` +
-          `  raw=${JSON.stringify(rawMessage)}\n` +
-          `  normalized=${JSON.stringify(message)}`,
-      );
+      logger.debug(formatDebugRecord(filePath, code, scope, hash, rawMessage, message));
     }
 
     records.push({

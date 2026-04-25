@@ -223,13 +223,15 @@ test.concurrent("--log-level debug traces hash transformation on stderr", () =>
   withFixture(async (tempDir) => {
     const { exitCode, stderr } = await run(["suppress", "--log-level", "debug"], tempDir);
     expect(exitCode).toBe(0);
-    // Debug lines are tagged so they don't get confused with normal output.
+    // Header tag identifies debug lines without polluting the value columns.
     expect(stderr).toContain("[debug]");
-    // Each diagnostic logs its raw message, normalized form, and short hash.
-    expect(stderr).toContain("hash=");
-    expect(stderr).toContain("raw=");
-    expect(stderr).toContain("normalized=");
     expect(stderr).toMatch(/TS\d+/);
+    // Field rows: aligned label/value pairs (label "normalized" is the widest).
+    expect(stderr).toMatch(/ {2}hash {8}/);
+    expect(stderr).toMatch(/ {2}raw {9}/);
+    expect(stderr).toMatch(/ {2}normalized {2}/);
+    // The actual diagnostic text appears in the value columns.
+    expect(stderr).toContain("Type 'string' is not assignable to type 'number'.");
   }));
 
 test.concurrent("default log level emits no [debug] lines", () =>
