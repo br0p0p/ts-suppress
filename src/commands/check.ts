@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { LogLevels } from "consola";
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
 import { logger } from "../logger.js";
@@ -49,7 +50,7 @@ export async function runCheck(
       }
       diagnostics.push(d);
     }
-    if (logger.level >= 0) {
+    if (logger.level > LogLevels.silent) {
       const host = createFormatHost(projectRoot);
       const useColor =
         "NO_COLOR" in process.env ? false : !!process.env["FORCE_COLOR"] || !!process.stderr.isTTY;

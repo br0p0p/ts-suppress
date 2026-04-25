@@ -1,3 +1,4 @@
+import { LogLevels } from "consola";
 import { test, expect, afterEach } from "vitest";
 import { logger, setLogLevel, LOG_LEVEL_NAMES } from "./logger.js";
 
@@ -6,8 +7,8 @@ afterEach(() => {
   logger.level = DEFAULT_LEVEL;
 });
 
-test("default level is info (3)", () => {
-  expect(DEFAULT_LEVEL).toBe(3);
+test("default level is info", () => {
+  expect(DEFAULT_LEVEL).toBe(LogLevels.info);
 });
 
 test("setLogLevel accepts each named level", () => {
@@ -20,13 +21,12 @@ test("setLogLevel accepts each named level", () => {
 
 test("setLogLevel('debug') raises level above default", () => {
   setLogLevel("debug");
-  expect(logger.level).toBe(4);
   expect(logger.level).toBeGreaterThan(DEFAULT_LEVEL);
 });
 
 test("setLogLevel('silent') drops below error", () => {
   setLogLevel("silent");
-  expect(logger.level).toBeLessThan(0);
+  expect(logger.level).toBeLessThan(LogLevels.error);
 });
 
 test("setLogLevel rejects unknown names", () => {

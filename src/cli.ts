@@ -19,7 +19,13 @@ const LOG_LEVEL_FLAG = [
 ] as const;
 
 function applyLogLevel(options: { logLevel?: string }): void {
-  if (options.logLevel) setLogLevel(options.logLevel);
+  if (!options.logLevel) return;
+  try {
+    setLogLevel(options.logLevel);
+  } catch (e) {
+    process.stderr.write(`${(e as Error).message}\n`);
+    process.exit(1);
+  }
 }
 
 // Default command

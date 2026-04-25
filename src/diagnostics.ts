@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { LogLevels } from "consola";
 import { relative } from "node:path";
 import { hashMessage } from "./hash.js";
 import { logger, styleStderr } from "./logger.js";
@@ -94,7 +95,7 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
       }
     }
 
-    if (logger.level >= 4) {
+    if (logger.level >= LogLevels.debug) {
       logger.debug(formatDebugRecord(filePath, code, scope, hash, rawMessage, message));
     }
 
