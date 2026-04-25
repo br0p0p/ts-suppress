@@ -1,6 +1,7 @@
-import { test, expect, describe } from "vitest";
+import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import ts from "typescript";
-import { collectDiagnostics, normalizeMessageForHash } from "./diagnostics.js";
+import { collectDiagnostics, formatDebugRecord, normalizeMessageForHash } from "./diagnostics.js";
+import { logger, setLogLevel } from "./logger.js";
 import { createInMemoryProject } from "./test-helpers.js";
 
 /** Run TS on a set of files and return the raw (pre-normalization) flattened messages. */
@@ -300,5 +301,107 @@ describe("hash still discriminates", () => {
     expect(aHash).toBeDefined();
     expect(bHash).toBeDefined();
     expect(aHash).not.toBe(bHash);
+  });
+});
+
+describe("formatDebugRecord (unit)", () => {
+  const HASH = "abcdef0123456789";
+  const RAW = "Type 'string' is not assignable to type 'number'.";
+
+  test("header omits scope when scope is empty", () => {
+    const out = formatDebugRecord("foo.ts", 2322, "", HASH, RAW, RAW);
+    const header = out.split("\n")[0]!;
+    expect(header).toMatch(/^foo\.ts TS2322$/);
+  });
+
+  test("header includes scope after a colon when present", () => {
+    const out = formatDebugRecord("foo.ts", 2322, "Svc.run", HASH, RAW, RAW);
+    const header = out.split("\n")[0]!;
+    expect(header).toMatch(/^foo\.ts:Svc\.run TS2322$/);
+  });
+
+  test("hash row shows only the first 12 hex chars", () => {
+    const out = formatDebugRecord("foo.ts", 2322, "", HASH, RAW, RAW);
+    expect(out).toMatch(/^ {2}hash {8}abcdef012345$/m);
+    expect(out).not.toContain("6789"); // remaining 4 chars are not rendered
+  });
+
+  test("field labels are aligned to a 10-char width", () => {
+    const out = formatDebugRecord("foo.ts", 2322, "", HASH, RAW, RAW);
+    expect(out).toMatch(/^ {2}hash {8}/m); // 4-char label + 6 padding + 2 separator
+    expect(out).toMatch(/^ {2}raw {9}/m); // 3-char label + 7 padding + 2 separator
+    expect(out).toMatch(/^ {2}normalized {2}/m); // 10-char label + 0 padding + 2 separator
+  });
+
+  test("multi-line values are continuation-indented to the value column", () => {
+    // Use a flush-left continuation so the assertion isolates the formatter's
+    // prefix from any leading whitespace TS embeds in chained sub-messages.
+    const value = "first line\nsecond line";
+    const out = formatDebugRecord("foo.ts", 2322, "", HASH, value, value);
+    // Continuation column = 2 (indent) + 10 (label width) + 2 (separator) = 14 spaces.
+    expect(out).toMatch(/^ {14}second line$/m);
+    // First line of the field still uses the labelled prefix.
+    expect(out).toMatch(/^ {2}raw {9}first line$/m);
+  });
+
+  test("normalization difference is visible across raw and normalized rows", () => {
+    const raw = "Type '{ a: 1, b: 2 }' is not assignable to type 'number'.";
+    const normalized = normalizeMessageForHash(raw);
+    const out = formatDebugRecord("foo.ts", 2322, "", HASH, raw, normalized);
+    expect(out).toContain("{ a: 1, b: 2 }"); // raw shows the structural type
+    expect(out).toContain("'<elided>'"); // normalized shows the elision
+  });
+});
+
+describe("debug-level emission via consola mockTypes", () => {
+  // consola's recommended Vitest pattern: replace the per-type method with a
+  // mock so we can assert against `.mock.calls` directly without spawning the
+  // CLI. https://unjs.io/packages/consola#with-jest-or-vitest
+  const originalDebug = logger.debug;
+
+  beforeEach(() => {
+    setLogLevel("info"); // reset between tests so the gate starts at default
+    logger.mockTypes(() => vi.fn()); // matches consola's documented Vitest pattern
+  });
+
+  afterAll(() => {
+    logger.debug = originalDebug;
+    setLogLevel("info");
+  });
+
+  test("no debug calls at default (info) level", () => {
+    const project = createInMemoryProject({
+      "a.ts": `export const bad: number = "s";`,
+    });
+    collectDiagnostics(project, "/");
+    expect(vi.mocked(logger.debug).mock.calls).toHaveLength(0);
+  });
+
+  test("one debug call per diagnostic at debug level", () => {
+    setLogLevel("debug");
+    const project = createInMemoryProject({
+      "a.ts": `
+        export const bad: number = "s";
+        export function fn(): number {}
+      `,
+    });
+    const recs = collectDiagnostics(project, "/");
+    const calls = vi.mocked(logger.debug).mock.calls;
+    expect(calls).toHaveLength(recs.length);
+  });
+
+  test("each debug message contains the formatted header and field rows", () => {
+    setLogLevel("debug");
+    const project = createInMemoryProject({
+      "a.ts": `export const bad: number = "s";`,
+    });
+    collectDiagnostics(project, "/");
+    const [first] = vi.mocked(logger.debug).mock.calls;
+    expect(first).toBeDefined();
+    const msg = String(first![0]);
+    expect(msg).toMatch(/^a\.ts TS2322$/m);
+    expect(msg).toMatch(/^ {2}hash {8}[0-9a-f]{12}$/m);
+    expect(msg).toMatch(/^ {2}raw {9}Type 'string'/m);
+    expect(msg).toMatch(/^ {2}normalized {2}Type 'string'/m);
   });
 });

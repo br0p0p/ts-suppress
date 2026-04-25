@@ -31,6 +31,8 @@ src/
   suppressions.ts      # Reads/writes .ts-suppressions.json, diff logic
   scope.ts             # AST traversal for dot-separated scope chains
   hash.ts              # SHA256 hashing of diagnostic messages
+  ignore.ts            # Detects/updates formatter ignore files (.prettierignore, .oxfmtignore)
+  logger.ts            # consola-backed logger; setLogLevel() drives --log-level
   types.ts             # Shared interfaces (Suppression, SuppressionFile)
   test-helpers.ts      # Shared test utilities
   ast.ts               # AST helper: find deepest node at a source position
@@ -40,6 +42,7 @@ src/
 
 - **typescript** (peer) — Compiler API for diagnostics and AST traversal (used directly, no wrapper)
 - **cac** — CLI argument parsing. Don't use `commander`, `yargs`, `gunshi`, or `mri`.
+- **consola** — Logging. Wired through `src/logger.ts` with a custom plain reporter (no `[log]` / ERROR-badge decoration) so default-level output stays byte-identical to plain `console.*` calls. `--log-level debug` traces hash transformation in `diagnostics.ts`.
 
 ## Code Style
 

@@ -1,5 +1,6 @@
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
+import { logger } from "../logger.js";
 import { readSuppressions, writeSuppressions, diffSuppressions } from "../suppressions.js";
 import type { Suppression } from "../types.js";
 
@@ -26,13 +27,13 @@ export async function runUpdate(
   await writeSuppressions(outputRoot, current);
 
   if (added.length > 0) {
-    console.log(`Added ${added.length} new suppression(s)`);
+    logger.log(`Added ${added.length} new suppression(s)`);
   }
   if (removed.length > 0) {
-    console.log(`Removed ${removed.length} stale suppression(s)`);
+    logger.log(`Removed ${removed.length} stale suppression(s)`);
   }
   if (added.length === 0 && removed.length === 0) {
-    console.log("Already up to date.");
+    logger.log("Already up to date.");
   }
 
   return { added, removed, total: current.length };

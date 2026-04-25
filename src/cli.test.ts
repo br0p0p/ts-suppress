@@ -217,6 +217,46 @@ test.concurrent("fix produces identical file to update", () =>
     expect(fixStdout).toBe(updateStdout);
   }));
 
+// --- Log level ---
+
+test.concurrent("--log-level debug traces hash transformation on stderr", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stderr } = await run(["suppress", "--log-level", "debug"], tempDir);
+    expect(exitCode).toBe(0);
+    // Header tag identifies debug lines without polluting the value columns.
+    expect(stderr).toContain("[debug]");
+    expect(stderr).toMatch(/TS\d+/);
+    // Field rows: aligned label/value pairs (label "normalized" is the widest).
+    expect(stderr).toMatch(/ {2}hash {8}/);
+    expect(stderr).toMatch(/ {2}raw {9}/);
+    expect(stderr).toMatch(/ {2}normalized {2}/);
+    // The actual diagnostic text appears in the value columns.
+    expect(stderr).toContain("Type 'string' is not assignable to type 'number'.");
+  }));
+
+test.concurrent("default log level emits no [debug] lines", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout, stderr } = await run(["suppress"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).not.toContain("[debug]");
+    expect(stderr).not.toContain("[debug]");
+  }));
+
+test.concurrent("--log-level silent suppresses normal output", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stdout, stderr } = await run(["suppress", "--log-level", "silent"], tempDir);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  }));
+
+test.concurrent("--log-level rejects unknown values", () =>
+  withFixture(async (tempDir) => {
+    const { exitCode, stderr } = await run(["suppress", "--log-level", "loud"], tempDir);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("Unknown log level");
+  }));
+
 // --- Error handling ---
 
 test.concurrent("update with missing tsconfig exits 1 with clear error", async () => {
