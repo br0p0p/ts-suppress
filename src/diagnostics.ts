@@ -35,7 +35,7 @@ export function normalizeMessageForHash(message: string): string {
  * `key  value` rows. Multi-line values are continuation-indented to the value
  * column so chained TS sub-messages stay readable.
  */
-function formatDebugRecord(
+export function formatDebugRecord(
   filePath: string,
   code: number,
   scope: string,
