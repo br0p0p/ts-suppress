@@ -176,6 +176,8 @@ describe("property tests", () => {
           }
         },
       ),
+      // Each run creates two temp dirs and does real I/O, so 30 runs is the
+      // ceiling worth paying for permutation coverage.
       { numRuns: 30 },
     );
   });
