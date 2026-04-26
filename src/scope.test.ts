@@ -67,3 +67,26 @@ test("resolves namespace/module scope", () => {
 test("resolves class expression assigned to variable", () => {
   expect(scopes).toContain("myClassExpr.method");
 });
+
+test("resolves class property holding arrow function", () => {
+  expect(scopes).toContain("ClassWithArrowProp.handler");
+});
+
+test("resolves class property holding object literal", () => {
+  expect(scopes).toContain("ClassWithObjectProp.config");
+});
+
+test("resolves variable holding object literal", () => {
+  expect(scopes).toContain("objectVar");
+});
+
+test("resolves object property assignment with arrow", () => {
+  expect(scopes).toContain("obj.handler");
+});
+
+test("does NOT promote object property with non-nameable initializer", () => {
+  // The error inside `{ count: 789 }` should anchor to the variable name
+  // only — `count` (a scalar property) must not contribute to scope.
+  expect(scopes).toContain("obj2");
+  expect(scopes).not.toContain("obj2.count");
+});

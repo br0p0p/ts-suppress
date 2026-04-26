@@ -9,6 +9,7 @@ import ts from "typescript";
  *   - "processData" for a top-level function
  *   - "handler" for an arrow function assigned to a const
  *   - "MyClass.get:name" for a getter
+ *   - "config.endpoints" for an object property holding an arrow function
  *   - "" for module scope
  */
 export function buildScopePath(node: ts.Node): string {
@@ -69,14 +70,43 @@ function getScopeName(node: ts.Node): string | null {
     return "constructor";
   }
 
-  // Arrow function, function expression, or class expression assigned to a variable
-  if (ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isClassExpression(node)) {
-    const parent = node.parent;
-    if (parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
-      return parent.name.text;
+  // Variable / property holding a "nameable" value (arrow, function, class, or
+  // object literal) contributes its declared name. Other initializers (numbers,
+  // strings, arrays, calls) do not, so unrelated edits in the same module or
+  // class don't shift suppression scopes.
+  if (ts.isVariableDeclaration(node)) {
+    if (
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      hasNameableInitializer(node.initializer)
+    ) {
+      return node.name.text;
     }
-    return null; // anonymous, no scope name
+    return null;
+  }
+
+  if (ts.isPropertyDeclaration(node)) {
+    if (node.initializer && hasNameableInitializer(node.initializer)) {
+      return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+    }
+    return null;
+  }
+
+  if (ts.isPropertyAssignment(node)) {
+    if (hasNameableInitializer(node.initializer)) {
+      return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+    }
+    return null;
   }
 
   return null;
+}
+
+function hasNameableInitializer(node: ts.Node): boolean {
+  return (
+    ts.isArrowFunction(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isClassExpression(node) ||
+    ts.isObjectLiteralExpression(node)
+  );
 }
