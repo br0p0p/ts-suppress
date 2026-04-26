@@ -102,6 +102,10 @@ function getScopeName(node: ts.Node): string | null {
   return null;
 }
 
+// Object literals count as nameable to keep config-style declarations
+// (`const settings = { ... }`) anchored to their variable name. Without this,
+// every error inside any object initializer collapses to module/class scope,
+// so editing one field shifts the fingerprints of unrelated neighbors.
 function hasNameableInitializer(node: ts.Node): boolean {
   return (
     ts.isArrowFunction(node) ||

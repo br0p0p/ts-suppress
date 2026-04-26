@@ -21,6 +21,11 @@ export function processData(): number {
 // Arrow function assigned to variable → scope: "handler"
 export const handler = (): number => "wrong";
 
+// Function expression assigned to variable → scope: "namedFnExpr"
+export const namedFnExpr = function (): number {
+  return "from function expression";
+};
+
 // Type alias member → scope: "MyTypeAlias"
 export type MyTypeAlias = { val: NonExistentTypeA };
 

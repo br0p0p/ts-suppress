@@ -48,6 +48,10 @@ test("resolves arrow function via parent variable declaration", () => {
   expect(scopes).toContain("handler");
 });
 
+test("resolves function expression via parent variable declaration", () => {
+  expect(scopes).toContain("namedFnExpr");
+});
+
 test("resolves type alias scope", () => {
   expect(scopes).toContain("MyTypeAlias");
 });
