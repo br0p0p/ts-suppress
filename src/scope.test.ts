@@ -47,3 +47,23 @@ test("resolves named function scope", () => {
 test("resolves arrow function via parent variable declaration", () => {
   expect(scopes).toContain("handler");
 });
+
+test("resolves type alias scope", () => {
+  expect(scopes).toContain("MyTypeAlias");
+});
+
+test("resolves interface scope", () => {
+  expect(scopes).toContain("MyInterface");
+});
+
+test("resolves enum scope", () => {
+  expect(scopes).toContain("MyEnum");
+});
+
+test("resolves namespace/module scope", () => {
+  expect(scopes).toContain("MyNamespace");
+});
+
+test("resolves class expression assigned to variable", () => {
+  expect(scopes).toContain("myClassExpr.method");
+});

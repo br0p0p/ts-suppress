@@ -39,6 +39,22 @@ function getScopeName(node: ts.Node): string | null {
     return node.name?.text ?? null;
   }
 
+  if (ts.isInterfaceDeclaration(node)) {
+    return node.name.text;
+  }
+
+  if (ts.isTypeAliasDeclaration(node)) {
+    return node.name.text;
+  }
+
+  if (ts.isEnumDeclaration(node)) {
+    return node.name.text;
+  }
+
+  if (ts.isModuleDeclaration(node)) {
+    return ts.isIdentifier(node.name) ? node.name.text : null;
+  }
+
   if (ts.isGetAccessorDeclaration(node)) {
     const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
     return `get:${name}`;
@@ -53,8 +69,8 @@ function getScopeName(node: ts.Node): string | null {
     return "constructor";
   }
 
-  // Arrow function or function expression assigned to a variable
-  if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+  // Arrow function, function expression, or class expression assigned to a variable
+  if (ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isClassExpression(node)) {
     const parent = node.parent;
     if (parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
       return parent.name.text;
