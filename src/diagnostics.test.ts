@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import fc from "fast-check";
 import ts from "typescript";
 import { collectDiagnostics, formatDebugRecord, normalizeMessageForHash } from "./diagnostics.js";
+import { hashMessage } from "./hash.js";
 import { logger, setLogLevel } from "./logger.js";
 import { createInMemoryProject } from "./test-helpers.js";
 
@@ -157,6 +159,61 @@ describe("normalizeMessageForHash (unit)", () => {
     const once = normalizeMessageForHash("Type '{ a: 1 }' is not assignable to type 'Foo'.");
     const twice = normalizeMessageForHash(once);
     expect(twice).toBe(once);
+  });
+});
+
+describe("normalizeMessageForHash (property)", () => {
+  // The regex matches single-quoted spans whose contents have no quote/newline
+  // and contain a structural marker. To stress that boundary, we generate
+  // payloads that always trip the regex and surrounding text that never does.
+  const safeRun = fc.string().map((s) => s.replaceAll(/['\n]/g, ""));
+
+  const structuralPayload = fc.oneof(
+    fc.tuple(safeRun, safeRun).map(([k, v]) => `{ ${k}: ${v} }`),
+    fc.array(safeRun, { minLength: 1, maxLength: 4 }).map((parts) => `{ ${parts.join("; ")} }`),
+    safeRun.map((t) => `...${t}[]`),
+    fc.integer({ min: 1, max: 999 }).map((n) => `... ${n} more ...`),
+  );
+
+  // A non-structural quoted span: no '/newline (so the regex can find both
+  // quote delimiters) and no {/}/... (so the regex skips it).
+  const nonStructuralPayload = fc.string().map((s) => s.replaceAll(/['\n{}]|\.\.\./g, ""));
+
+  test("structural payloads collapse to identical hashes regardless of contents", () => {
+    fc.assert(
+      fc.property(
+        safeRun,
+        safeRun,
+        structuralPayload,
+        structuralPayload,
+        (prefix, suffix, a, b) => {
+          const messageA = `${prefix}'${a}'${suffix}`;
+          const messageB = `${prefix}'${b}'${suffix}`;
+          return (
+            hashMessage(normalizeMessageForHash(messageA)) ===
+            hashMessage(normalizeMessageForHash(messageB))
+          );
+        },
+      ),
+    );
+  });
+
+  test("non-structural quoted spans pass through unchanged", () => {
+    fc.assert(
+      fc.property(safeRun, safeRun, nonStructuralPayload, (prefix, suffix, payload) => {
+        const message = `${prefix}'${payload}'${suffix}`;
+        return normalizeMessageForHash(message).includes(`'${payload}'`);
+      }),
+    );
+  });
+
+  test("normalization is idempotent over arbitrary strings", () => {
+    fc.assert(
+      fc.property(fc.string(), (s) => {
+        const once = normalizeMessageForHash(s);
+        return normalizeMessageForHash(once) === once;
+      }),
+    );
   });
 });
 

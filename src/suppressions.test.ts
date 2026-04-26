@@ -1,6 +1,7 @@
-import { test, expect, beforeEach, afterEach } from "vitest";
+import { test, expect, beforeEach, afterEach, describe } from "vitest";
+import fc from "fast-check";
 import { resolve } from "node:path";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import {
   readSuppressions,
@@ -98,4 +99,86 @@ test("diffSuppressions: previously-unique becomes duplicate, new one is unsuppre
   const diff = diffSuppressions(existing, current);
   expect(diff.unsuppressed).toEqual([{ file: "a.ts", code: 2322, hash: "same", scope: "fnB" }]);
   expect(diff.stale).toEqual([]);
+});
+
+describe("property tests", () => {
+  // Small alphabets force collisions so duplicate-handling paths are exercised.
+  const arbSuppression: fc.Arbitrary<Suppression> = fc.record({
+    file: fc.constantFrom("a.ts", "b.ts", "c.ts"),
+    code: fc.constantFrom(2322, 2345, 7006),
+    hash: fc.constantFrom("h1", "h2", "h3"),
+    scope: fc.constantFrom("", "fn", "Cls.method", "outer.inner"),
+  });
+
+  test("diffSuppressions(xs, xs) is empty", () => {
+    fc.assert(
+      fc.property(fc.array(arbSuppression, { maxLength: 20 }), (xs) => {
+        const { unsuppressed, stale } = diffSuppressions(xs, xs);
+        return unsuppressed.length === 0 && stale.length === 0;
+      }),
+    );
+  });
+
+  test("diff conserves matched count: |current| - |unsuppressed| === |existing| - |stale|", () => {
+    fc.assert(
+      fc.property(
+        fc.array(arbSuppression, { maxLength: 20 }),
+        fc.array(arbSuppression, { maxLength: 20 }),
+        (existing, current) => {
+          const { unsuppressed, stale } = diffSuppressions(existing, current);
+          return current.length - unsuppressed.length === existing.length - stale.length;
+        },
+      ),
+    );
+  });
+
+  test("diff against empty current marks every existing as stale", () => {
+    fc.assert(
+      fc.property(fc.array(arbSuppression, { maxLength: 20 }), (existing) => {
+        const { unsuppressed, stale } = diffSuppressions(existing, []);
+        return unsuppressed.length === 0 && stale.length === existing.length;
+      }),
+    );
+  });
+
+  test("diff against empty existing marks every current as unsuppressed", () => {
+    fc.assert(
+      fc.property(fc.array(arbSuppression, { maxLength: 20 }), (current) => {
+        const { unsuppressed, stale } = diffSuppressions([], current);
+        return stale.length === 0 && unsuppressed.length === current.length;
+      }),
+    );
+  });
+
+  test("writeSuppressions output is invariant under input permutation", async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc
+          .array(arbSuppression, { maxLength: 12 })
+          .chain((xs) =>
+            fc.tuple(
+              fc.constant(xs),
+              fc.shuffledSubarray(xs, { minLength: xs.length, maxLength: xs.length }),
+            ),
+          ),
+        async ([xs, shuffled]) => {
+          const dirA = await mkdtemp(resolve(tmpdir(), "ts-suppress-prop-a-"));
+          const dirB = await mkdtemp(resolve(tmpdir(), "ts-suppress-prop-b-"));
+          try {
+            await writeSuppressions(dirA, xs);
+            await writeSuppressions(dirB, shuffled);
+            const a = await readFile(resolve(dirA, SUPPRESSIONS_FILENAME), "utf-8");
+            const b = await readFile(resolve(dirB, SUPPRESSIONS_FILENAME), "utf-8");
+            return a === b;
+          } finally {
+            await rm(dirA, { recursive: true });
+            await rm(dirB, { recursive: true });
+          }
+        },
+      ),
+      // Each run creates two temp dirs and does real I/O, so 30 runs is the
+      // ceiling worth paying for permutation coverage.
+      { numRuns: 30 },
+    );
+  });
 });
