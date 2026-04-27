@@ -14,7 +14,7 @@ import { SUPPRESSIONS_FILENAME, writeSuppressions } from "./suppressions.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesRoot = resolve(__dirname, "..", "fixtures");
 
-const FIXTURES = ["basic", "scoped", "nested"] as const;
+const FIXTURES = ["basic", "scoped", "nested", "codes"] as const;
 
 describe("golden suppressions", () => {
   let tempDir: string;

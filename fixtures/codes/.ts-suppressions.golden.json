@@ -1,0 +1,10 @@
+{"suppressions": [
+  {"file":"code-cases.ts","code":2322,"hash":"f4d9667471f422b62248edc25d30c01a903ae620d10c1d49ac71a2b64e49147f","scope":""},
+  {"file":"code-cases.ts","code":2339,"hash":"33507d4a0c4dea3e83dd17f0934debb7dd67023ce4e333c3331793fb8af1cdf3","scope":""},
+  {"file":"code-cases.ts","code":2345,"hash":"72eb2ac57d8fa67fcbdca49c43165616548e489fac0d9189a25bed819f6c97de","scope":""},
+  {"file":"code-cases.ts","code":2367,"hash":"81643c215385b197e221d1b287eb7cc96a129b666ba5496f342dd829a6b5897f","scope":""},
+  {"file":"code-cases.ts","code":2551,"hash":"dd76b85f91ab7305669b6ccaeec7f2efc538a5600e5c29a1768038bc751432a3","scope":""},
+  {"file":"code-cases.ts","code":2554,"hash":"0d7f88caa9641107a48c1e7e16181950d9d374636b6c4d2f833dab296c63e034","scope":""},
+  {"file":"code-cases.ts","code":2739,"hash":"58d8895774de699a2d2f2791e4f185710e8445ec0967e4bd5c775e401859707e","scope":"ts2739"},
+  {"file":"code-cases.ts","code":7006,"hash":"b0ca99204b979df4caf4430fd1d0182d6992369b27dfeb6e85d0505037f748ea","scope":"ts7006"}
+]}
