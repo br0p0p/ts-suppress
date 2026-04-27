@@ -49,13 +49,13 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
   try {
     await access(filePath);
   } catch {
-    logger.debug(`suppressions: ${filePath} (not found)`);
+    logger.debug(`suppressions: read ${filePath} (not found)`);
     return [];
   }
 
-  logger.debug(`suppressions: read ${filePath}`);
   const raw = await readFile(filePath, "utf-8");
   const data: SuppressionFile = JSON.parse(raw);
+  logger.debug(`suppressions: read ${filePath} (${data.suppressions.length})`);
   return data.suppressions;
 }
 
@@ -65,11 +65,11 @@ export async function writeSuppressions(
   suppressions: Suppression[],
 ): Promise<void> {
   const filePath = resolve(projectRoot, SUPPRESSIONS_FILENAME);
-  logger.debug(`suppressions: write ${filePath} (${suppressions.length})`);
   const sorted = [...suppressions].sort(compareSuppression);
   const lines = sorted.map((s) => "  " + JSON.stringify(s));
   const content = `{"suppressions": [\n${lines.join(",\n")}\n]}\n`;
   await writeFile(filePath, content);
+  logger.debug(`suppressions: write ${filePath} (${suppressions.length})`);
 }
 
 export interface SuppressionDiff {
