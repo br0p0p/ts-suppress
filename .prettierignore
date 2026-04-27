@@ -1,3 +1,0 @@
-# Golden snapshot files for src/golden.test.ts — must match writeSuppressions
-# output byte-for-byte, so the formatter must not rewrite them.
-fixtures/**/.ts-suppressions.golden.json
