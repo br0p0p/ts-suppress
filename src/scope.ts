@@ -70,10 +70,12 @@ function getScopeName(node: ts.Node): string | null {
     return "constructor";
   }
 
-  // Variable / property holding a "nameable" value (arrow, function, class, or
-  // object literal) contributes its declared name. Other initializers (numbers,
-  // strings, arrays, calls) do not, so unrelated edits in the same module or
-  // class don't shift suppression scopes.
+  // Variable / property holding a "nameable" value contributes its declared
+  // name. Nameable means arrow, function, class, or object literal — and also
+  // a call that wraps a nameable argument (the React HOC/hook pattern, e.g.
+  // `const handler = useCallback(() => ..., [])`). Scalars, arrays, and calls
+  // with no nameable args stay anonymous so unrelated edits in the same module
+  // or class don't shift suppression scopes.
   if (ts.isVariableDeclaration(node)) {
     if (
       ts.isIdentifier(node.name) &&
@@ -103,14 +105,23 @@ function getScopeName(node: ts.Node): string | null {
 }
 
 // Object literals count as nameable to keep config-style declarations
-// (`const settings = { ... }`) anchored to their variable name. Without this,
-// every error inside any object initializer collapses to module/class scope,
-// so editing one field shifts the fingerprints of unrelated neighbors.
+// (`const settings = { ... }`) anchored to their variable name. Calls count
+// when they wrap a nameable argument: `useCallback(arrow, deps)`,
+// `forwardRef(arrow)`, `createSlice({...})`, and nested chains like
+// `memo(forwardRef(arrow))` all anchor to the outer variable name. Without
+// this, every error inside any HOC-wrapped body collapses to its enclosing
+// component or module scope.
 function hasNameableInitializer(node: ts.Node): boolean {
-  return (
+  if (
     ts.isArrowFunction(node) ||
     ts.isFunctionExpression(node) ||
     ts.isClassExpression(node) ||
     ts.isObjectLiteralExpression(node)
-  );
+  ) {
+    return true;
+  }
+  if (ts.isCallExpression(node)) {
+    return node.arguments.some(hasNameableInitializer);
+  }
+  return false;
 }
