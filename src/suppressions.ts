@@ -1,6 +1,14 @@
 import { readFile, writeFile, access } from "node:fs/promises";
+import { LogLevels } from "consola";
 import { resolve } from "node:path";
+import { logger } from "./logger.js";
 import type { Suppression, SuppressionFile } from "./types.js";
+
+/** Compact one-line description of a suppression for log output. */
+export function describeSuppression(s: Suppression): string {
+  const scope = s.scope ? ` [${s.scope}]` : "";
+  return `${s.file} TS${s.code} ${s.hash.slice(0, 8)}${scope}`;
+}
 
 export const SUPPRESSIONS_FILENAME = ".ts-suppressions.json";
 
@@ -41,11 +49,13 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
   try {
     await access(filePath);
   } catch {
+    logger.debug(`suppressions: read ${filePath} (not found)`);
     return [];
   }
 
   const raw = await readFile(filePath, "utf-8");
   const data: SuppressionFile = JSON.parse(raw);
+  logger.debug(`suppressions: read ${filePath} (${data.suppressions.length})`);
   return data.suppressions;
 }
 
@@ -59,6 +69,7 @@ export async function writeSuppressions(
   const lines = sorted.map((s) => "  " + JSON.stringify(s));
   const content = `{"suppressions": [\n${lines.join(",\n")}\n]}\n`;
   await writeFile(filePath, content);
+  logger.debug(`suppressions: write ${filePath} (${suppressions.length})`);
 }
 
 export interface SuppressionDiff {
@@ -79,6 +90,8 @@ export interface SuppressionDiff {
  * the existing suppression covers one occurrence; extras are reported as unsuppressed.
  */
 export function diffSuppressions(existing: Suppression[], current: Suppression[]): SuppressionDiff {
+  logger.debug(`diff: existing=${existing.length} current=${current.length}`);
+  const traceEnabled = logger.level >= LogLevels.trace;
   const existingCounts = countByBaseKey(existing);
   const currentCounts = countByBaseKey(current);
 
@@ -103,8 +116,10 @@ export function diffSuppressions(existing: Suppression[], current: Suppression[]
 
     if (remaining > 0) {
       matchedKeys.set(key, (matchedKeys.get(key) ?? 0) + 1);
+      if (traceEnabled) logger.trace(`diff matched: ${describeSuppression(s)}`);
     } else {
       unsuppressed.push(s);
+      if (traceEnabled) logger.trace(`diff unsuppressed: ${describeSuppression(s)}`);
     }
   }
 
@@ -123,8 +138,10 @@ export function diffSuppressions(existing: Suppression[], current: Suppression[]
 
     if (available > 0) {
       staleConsumed.set(key, (staleConsumed.get(key) ?? 0) + 1);
+      if (traceEnabled) logger.trace(`diff covered: ${describeSuppression(s)}`);
     } else {
       stale.push(s);
+      if (traceEnabled) logger.trace(`diff stale: ${describeSuppression(s)}`);
     }
   }
 

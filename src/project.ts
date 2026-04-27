@@ -1,5 +1,7 @@
 import ts from "typescript";
+import { LogLevels } from "consola";
 import { dirname } from "node:path";
+import { logger } from "./logger.js";
 
 /** Thin wrapper around ts.Program — the only surface area consumers need. */
 export interface TsProject {
@@ -23,7 +25,10 @@ export function findTsConfig(cwd: string): string {
  * Returns the Program and the resolved project root (directory containing tsconfig.json).
  */
 export function createProject(cwd: string): { project: TsProject; projectRoot: string } {
+  logger.debug(`typescript: ${ts.version}`);
+  logger.debug(`cwd: ${cwd}`);
   const tsConfigFilePath = findTsConfig(cwd);
+  logger.debug(`tsconfig: ${tsConfigFilePath}`);
   const projectRoot = dirname(tsConfigFilePath);
 
   const configFile = ts.readConfigFile(tsConfigFilePath, (f) => ts.sys.readFile(f));
@@ -34,6 +39,12 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
   if (parsed.errors.length > 0) {
     throw new Error(ts.flattenDiagnosticMessageText(parsed.errors[0]!.messageText, "\n"));
   }
+
+  logger.debug(`tsconfig files: ${parsed.fileNames.length}`);
+  if (logger.level >= LogLevels.trace) {
+    logger.trace(`tsconfig options: ${JSON.stringify(parsed.options, null, 2)}`);
+  }
+
   // noErrorTruncation keeps diagnostic messages stable: TS's default truncation
   // budget can shift based on file-wide type rendering, which changes the hash
   // for completely unrelated edits.

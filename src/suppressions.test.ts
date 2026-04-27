@@ -7,9 +7,32 @@ import {
   readSuppressions,
   writeSuppressions,
   diffSuppressions,
+  describeSuppression,
   SUPPRESSIONS_FILENAME,
 } from "./suppressions.js";
 import type { Suppression } from "./types.js";
+
+describe("describeSuppression", () => {
+  test("includes file, code, and 8-char hash prefix when scope is empty", () => {
+    const s: Suppression = {
+      file: "src/a.ts",
+      code: 2322,
+      hash: "abcdef1234567890",
+      scope: "",
+    };
+    expect(describeSuppression(s)).toBe("src/a.ts TS2322 abcdef12");
+  });
+
+  test("appends [scope] when present", () => {
+    const s: Suppression = {
+      file: "src/a.ts",
+      code: 2322,
+      hash: "abcdef1234567890",
+      scope: "Svc.run",
+    };
+    expect(describeSuppression(s)).toBe("src/a.ts TS2322 abcdef12 [Svc.run]");
+  });
+});
 
 let tempDir: string;
 

@@ -74,6 +74,9 @@ export function formatDebugRecord(
  */
 export function collectDiagnostics(project: TsProject, projectRoot: string): DiagnosticRecord[] {
   const diagnostics = ts.getPreEmitDiagnostics(project.program);
+  if (logger.level >= LogLevels.debug) {
+    logger.debug(`diagnostics: ${diagnostics.length}`);
+  }
   const records: DiagnosticRecord[] = [];
 
   for (const diag of diagnostics) {

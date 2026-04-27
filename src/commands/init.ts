@@ -5,10 +5,12 @@ import { detectIgnoreFiles, addToIgnoreFile } from "../ignore.js";
 
 export async function runInit(ignore?: boolean) {
   const cwd = process.cwd();
+  logger.debug(`cwd: ${cwd}`);
   await writeSuppressions(cwd, []);
   logger.log(`Created ${SUPPRESSIONS_FILENAME}`);
 
   const detected = await detectIgnoreFiles(cwd);
+  logger.debug(`ignore files: ${detected.length > 0 ? detected.join(", ") : "(none detected)"}`);
 
   if (detected.length === 0) {
     if (ignore !== false) {
