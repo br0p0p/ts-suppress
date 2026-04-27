@@ -434,7 +434,7 @@ describe("debug-level emission via consola mockTypes", () => {
     expect(vi.mocked(logger.debug).mock.calls).toHaveLength(0);
   });
 
-  test("one debug call per diagnostic at debug level", () => {
+  test("one debug call per diagnostic at debug level (plus a summary)", () => {
     setLogLevel("debug");
     const project = createInMemoryProject({
       "a.ts": `
@@ -444,18 +444,20 @@ describe("debug-level emission via consola mockTypes", () => {
     });
     const recs = collectDiagnostics(project, "/");
     const calls = vi.mocked(logger.debug).mock.calls;
-    expect(calls).toHaveLength(recs.length);
+    expect(calls[0]?.[0]).toBe(`diagnostics: ${recs.length}`);
+    expect(calls).toHaveLength(recs.length + 1);
   });
 
-  test("each debug message contains the formatted header and field rows", () => {
+  test("each per-record debug message contains the formatted header and field rows", () => {
     setLogLevel("debug");
     const project = createInMemoryProject({
       "a.ts": `export const bad: number = "s";`,
     });
     collectDiagnostics(project, "/");
-    const [first] = vi.mocked(logger.debug).mock.calls;
-    expect(first).toBeDefined();
-    const msg = String(first![0]);
+    // First call is the "diagnostics: N" summary; per-record traces follow.
+    const [, firstRecord] = vi.mocked(logger.debug).mock.calls;
+    expect(firstRecord).toBeDefined();
+    const msg = String(firstRecord![0]);
     expect(msg).toMatch(/^a\.ts TS2322$/m);
     expect(msg).toMatch(/^ {2}hash {8}[0-9a-f]{12}$/m);
     expect(msg).toMatch(/^ {2}raw {9}Type 'string'/m);
