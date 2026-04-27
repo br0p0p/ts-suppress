@@ -106,11 +106,12 @@ function getScopeName(node: ts.Node): string | null {
 
 // Object literals count as nameable to keep config-style declarations
 // (`const settings = { ... }`) anchored to their variable name. Calls count
-// when they wrap a nameable argument: `useCallback(arrow, deps)`,
-// `forwardRef(arrow)`, `createSlice({...})`, and nested chains like
-// `memo(forwardRef(arrow))` all anchor to the outer variable name. Without
-// this, every error inside any HOC-wrapped body collapses to its enclosing
-// component or module scope.
+// when they wrap a nameable argument — covering HOC/hook patterns
+// (`useCallback(arrow, deps)`, `forwardRef(arrow)`, `createSlice({...})`,
+// nested chains like `memo(forwardRef(arrow))`) but also, by the same rule,
+// iteration-style assignments such as `const items = arr.map(arrow)`. Both
+// are correct: the variable name is the meaningful anchor for any error
+// inside the wrapped body regardless of what the outer call is "for".
 function hasNameableInitializer(node: ts.Node): boolean {
   if (
     ts.isArrowFunction(node) ||

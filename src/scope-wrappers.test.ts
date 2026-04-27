@@ -46,6 +46,10 @@ test("nested wrappers (memo(forwardRef(...))) anchor to outermost variable name"
   expect(scopes).toContain("Wrapped");
 });
 
+test("class field with call-wrapped arrow anchors to ClassName.field", () => {
+  expect(scopes).toContain("ClassWithCallbackField.handleClick");
+});
+
 test("does NOT promote a variable whose call initializer takes only scalar args", () => {
   // Regression guard — must hold both before and after the fix.
   expect(scopes).not.toContain("plainValue");

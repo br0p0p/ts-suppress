@@ -45,6 +45,16 @@ export const Wrapped = memo(
   }),
 );
 
+// Class-field PropertyDeclaration whose initializer is a call-wrapped arrow →
+// scope: "ClassWithCallbackField.handleClick"
+// Confirms the same nameable-initializer rule applies to class fields.
+export class ClassWithCallbackField {
+  handleClick = useCallback(() => {
+    const cf: number = "bad";
+    return cf;
+  }, []);
+}
+
 // Negative: plain call wrapping a scalar arg must NOT promote the variable.
 // Walk: CallExpression(identity) → VariableDeclaration(plainValue). The error
 // is on the assignment, the call has no callback-shaped argument, so the
