@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.6.0...ts-suppress-v1.0.0) (2026-04-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **scope:** anchor call-wrapped callbacks to outer variable name ([#27](https://github.com/br0p0p/ts-suppress/issues/27))
+* **scope:** expand scope resolution to declarations and named-block initializers ([#23](https://github.com/br0p0p/ts-suppress/issues/23))
+* **diagnostics:** normalize message before hashing to stabilize suppressions ([#18](https://github.com/br0p0p/ts-suppress/issues/18))
+
+### Features
+
+* **cli:** add --log-level flag backed by consola ([#22](https://github.com/br0p0p/ts-suppress/issues/22)) ([2c24c51](https://github.com/br0p0p/ts-suppress/commit/2c24c51d5a89f733fb7617bb5f46519c8f74873a))
+* **logging:** expose project, diagnostic, and diff context at debug/trace levels ([#26](https://github.com/br0p0p/ts-suppress/issues/26)) ([0c8c490](https://github.com/br0p0p/ts-suppress/commit/0c8c490114057ff82a594f6fc0a4e0762d5f4b6e))
+* **scope:** anchor call-wrapped callbacks to outer variable name ([#27](https://github.com/br0p0p/ts-suppress/issues/27)) ([c83cce9](https://github.com/br0p0p/ts-suppress/commit/c83cce9ecc421f0339d0546b1bcc8a8e4ae016fe))
+* **scope:** expand scope resolution to declarations and named-block initializers ([#23](https://github.com/br0p0p/ts-suppress/issues/23)) ([a6199dc](https://github.com/br0p0p/ts-suppress/commit/a6199dcfd71d2ba64a55d24e3047d63fb849d48f))
+
+
+### Bug Fixes
+
+* **diagnostics:** normalize message before hashing to stabilize suppressions ([#18](https://github.com/br0p0p/ts-suppress/issues/18)) ([6b5952c](https://github.com/br0p0p/ts-suppress/commit/6b5952c46388dadfe14abb7d547fff76cd836e77))
+
 ## [0.6.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.5.0...ts-suppress-v0.6.0) (2026-04-22)
 
 
