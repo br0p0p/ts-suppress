@@ -24,13 +24,13 @@ export interface UpdateResult {
 export async function runUpdate(
   project: TsProject,
   projectRoot: string,
-  outputRoot: string = projectRoot,
+  suppressionsRoot: string = projectRoot,
 ): Promise<UpdateResult> {
-  const existing = await readSuppressions(outputRoot);
+  const existing = await readSuppressions(suppressionsRoot);
   const current = collectDiagnostics(project, projectRoot).map((r) => r.suppression);
   const { unsuppressed: added, stale: removed } = diffSuppressions(existing, current);
 
-  await writeSuppressions(outputRoot, current);
+  await writeSuppressions(suppressionsRoot, current);
 
   const debugEnabled = logger.level >= LogLevels.debug;
   if (added.length > 0) {
