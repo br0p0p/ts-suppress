@@ -14,6 +14,18 @@ export interface DiagnosticRecord {
 }
 
 /**
+ * Normalize OS-native path separators to forward slashes. node:path.relative
+ * returns backslashes on Windows, but the committed .ts-suppressions.json is
+ * shared across platforms and all matching is exact string equality on the
+ * `file` field — so a file written on Windows (`src\a.ts`) must not read as
+ * stale/unsuppressed on Linux/CI (`src/a.ts`). Backslashes aren't legal in
+ * POSIX path components, so this is unconditional and a no-op on POSIX.
+ */
+export function toPosixPath(p: string): string {
+  return p.replaceAll("\\", "/");
+}
+
+/**
  * Render a debug-level line: a location header plus the raw diagnostic message.
  * Multi-line messages are continuation-indented to the value column.
  */
@@ -46,16 +58,17 @@ export function formatDebugRecord(
  */
 export function collectDiagnostics(project: TsProject, projectRoot: string): DiagnosticRecord[] {
   const diagnostics = ts.getPreEmitDiagnostics(project.program);
-  if (logger.level >= LogLevels.debug) {
-    logger.debug(`diagnostics: ${diagnostics.length}`);
-  }
+  // consola already suppresses debug output below the debug level, so no guard
+  // is needed for a trivial message (unlike the per-iteration formatDebugRecord
+  // call below, whose cost the guard there genuinely avoids).
+  logger.debug(`diagnostics: ${diagnostics.length}`);
   const records: DiagnosticRecord[] = [];
 
   for (const diag of diagnostics) {
     const sourceFile = diag.file;
     if (!sourceFile) continue;
 
-    const filePath = relative(projectRoot, sourceFile.fileName);
+    const filePath = toPosixPath(relative(projectRoot, sourceFile.fileName));
     const code = diag.code;
 
     const start = diag.start;
