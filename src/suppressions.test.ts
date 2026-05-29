@@ -1,7 +1,7 @@
-import { test, expect, beforeEach, afterEach, describe } from "vitest";
+import { test, expect, beforeEach, afterEach, describe, vi } from "vitest";
 import fc from "fast-check";
 import { resolve } from "node:path";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import {
   readSuppressions,
@@ -9,7 +9,9 @@ import {
   diffSuppressions,
   describeSuppression,
   SUPPRESSIONS_FILENAME,
+  SUPPRESSIONS_SCHEMA_VERSION,
 } from "./suppressions.js";
+import { logger } from "./logger.js";
 import type { Suppression } from "./types.js";
 
 let tempDir: string;
@@ -45,6 +47,67 @@ test("writeSuppressions creates a sorted JSON file", async () => {
 });
 
 const s = (file: string, code: number, scope: string): Suppression => ({ file, code, scope });
+
+test("writeSuppressions emits the current schema version", async () => {
+  await writeSuppressions(tempDir, []);
+  const raw = await readFile(resolve(tempDir, SUPPRESSIONS_FILENAME), "utf-8");
+  const data = JSON.parse(raw);
+  expect(data.version).toBe(SUPPRESSIONS_SCHEMA_VERSION);
+  expect(data.suppressions).toEqual([]);
+});
+
+test("writeSuppressions leaves no stray temp files", async () => {
+  await writeSuppressions(tempDir, [s("a.ts", 1, "")]);
+  const entries = await readdir(tempDir);
+  expect(entries).toEqual([SUPPRESSIONS_FILENAME]);
+});
+
+describe("readSuppressions validation", () => {
+  const cases: Array<[string, string]> = [
+    ["empty file", ""],
+    ["whitespace only", "   \n"],
+    ["invalid JSON", "NOT JSON{{{"],
+    ["null", "null"],
+    ["empty object (no suppressions key)", "{}"],
+    ["top-level array", "[]"],
+    ["suppressions is not an array", '{"suppressions": 123}'],
+  ];
+
+  test.each(cases)("throws a clear error on %s", async (_label, content) => {
+    await writeFile(resolve(tempDir, SUPPRESSIONS_FILENAME), content);
+    await expect(readSuppressions(tempDir)).rejects.toThrow(SUPPRESSIONS_FILENAME);
+  });
+
+  test("warns but does not throw on a version mismatch", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    try {
+      await writeFile(
+        resolve(tempDir, SUPPRESSIONS_FILENAME),
+        JSON.stringify({ version: SUPPRESSIONS_SCHEMA_VERSION + 1, suppressions: [] }),
+      );
+      const result = await readSuppressions(tempDir);
+      expect(result).toEqual([]);
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("accepts legacy files with no version field", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    try {
+      await writeFile(
+        resolve(tempDir, SUPPRESSIONS_FILENAME),
+        JSON.stringify({ suppressions: [s("a.ts", 1, "")] }),
+      );
+      const result = await readSuppressions(tempDir);
+      expect(result).toHaveLength(1);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
 
 describe("diffSuppressions (scope identity)", () => {
   test("identical existing and current is a no-op", () => {
