@@ -259,12 +259,17 @@ test.concurrent("--log-level rejects unknown values", () =>
 
 // --- Error handling ---
 
+// A raw Node stack trace has frame lines like "    at Object.<anonymous> (...)".
+// The error boundary must print the actionable message only at default level.
+const NO_STACK_FRAMES = /^\s*at /m;
+
 test.concurrent("update with missing tsconfig exits 1 with clear error", async () => {
   const emptyDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-empty-"));
   try {
     const { exitCode, stderr } = await run(["update"], emptyDir);
     expect(exitCode).toBe(1);
     expect(stderr).toContain("tsconfig");
+    expect(stderr).not.toMatch(NO_STACK_FRAMES);
   } finally {
     await rm(emptyDir, { recursive: true });
   }
@@ -276,6 +281,7 @@ test.concurrent("update with corrupt suppression JSON exits 1 with clear error",
     const { exitCode, stderr } = await run(["update"], tempDir);
     expect(exitCode).toBe(1);
     expect(stderr.length).toBeGreaterThan(0);
+    expect(stderr).not.toMatch(NO_STACK_FRAMES);
   }));
 
 test.concurrent("missing tsconfig exits 1 with clear error", async () => {
@@ -284,6 +290,7 @@ test.concurrent("missing tsconfig exits 1 with clear error", async () => {
     const { exitCode, stderr } = await run(["check"], emptyDir);
     expect(exitCode).toBe(1);
     expect(stderr).toContain("tsconfig");
+    expect(stderr).not.toMatch(NO_STACK_FRAMES);
   } finally {
     await rm(emptyDir, { recursive: true });
   }
@@ -294,6 +301,19 @@ test.concurrent("corrupt suppression JSON exits 1 with clear error", () =>
     await writeFile(resolve(tempDir, ".ts-suppressions.json"), "NOT JSON{{{");
     const { exitCode, stderr } = await run(["check"], tempDir);
     expect(exitCode).toBe(1);
-    // Should get a parse error, not a crash
+    // Should get a parse error, not a crash with a stack trace.
     expect(stderr.length).toBeGreaterThan(0);
+    expect(stderr).not.toMatch(NO_STACK_FRAMES);
   }));
+
+test.concurrent("--log-level debug surfaces a full stack on error", async () => {
+  const emptyDir = await mkdtemp(resolve(tmpdir(), "ts-suppress-empty-"));
+  try {
+    const { exitCode, stderr } = await run(["check", "--log-level", "debug"], emptyDir);
+    expect(exitCode).toBe(1);
+    // At debug level the boundary logs the Error object, including its stack.
+    expect(stderr).toMatch(NO_STACK_FRAMES);
+  } finally {
+    await rm(emptyDir, { recursive: true });
+  }
+});

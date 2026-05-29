@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { cac } from "cac";
+import { LogLevels } from "consola";
 import { createProject } from "./project.js";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runSuppress } from "./commands/suppress.js";
 import { runUpdate } from "./commands/update.js";
-import { LOG_LEVEL_NAMES, setLogLevel } from "./logger.js";
+import { logger, LOG_LEVEL_NAMES, setLogLevel } from "./logger.js";
 
 const require = createRequire(import.meta.url);
 const { version: VERSION } = require("../package.json") as { version: string };
@@ -28,6 +29,25 @@ function applyLogLevel(options: { logLevel?: string }): void {
   }
 }
 
+/**
+ * Error boundary for command actions. Any thrown error — missing tsconfig,
+ * tsconfig parse error, corrupt suppression file — surfaces as a clean message
+ * and exit code 1 instead of an unhandled rejection with a raw Node stack trace.
+ * Full stacks are reserved for `--log-level debug`/`trace` to aid diagnosis.
+ */
+async function runAction(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    if (logger.level >= LogLevels.debug) {
+      logger.error(e);
+    } else {
+      logger.error(e instanceof Error ? e.message : String(e));
+    }
+    process.exit(1);
+  }
+}
+
 // Default command
 cli.command("").action(() => {
   cli.outputHelp();
@@ -44,7 +64,7 @@ cli
   .example("ts-suppress init --ignore")
   .action(async (options: { ignore?: boolean; logLevel?: string }) => {
     applyLogLevel(options);
-    await runInit(options.ignore);
+    await runAction(() => runInit(options.ignore));
   });
 
 cli
@@ -54,8 +74,10 @@ cli
   .example("ts-suppress suppress --log-level debug   # Trace each error's hash transformation")
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
-    const { project, projectRoot } = createProject(process.cwd());
-    await runSuppress(project, projectRoot);
+    await runAction(async () => {
+      const { project, projectRoot } = createProject(process.cwd());
+      await runSuppress(project, projectRoot);
+    });
   });
 
 cli
@@ -66,8 +88,10 @@ cli
   .example("ts-suppress fix      # Same as update")
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
-    const { project, projectRoot } = createProject(process.cwd());
-    await runUpdate(project, projectRoot);
+    await runAction(async () => {
+      const { project, projectRoot } = createProject(process.cwd());
+      await runUpdate(project, projectRoot);
+    });
   });
 
 cli
@@ -76,9 +100,11 @@ cli
   .example((name) => `${name} check`)
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
-    const { project, projectRoot } = createProject(process.cwd());
-    const { exitCode } = await runCheck(project, projectRoot);
-    if (exitCode !== 0) process.exit(exitCode);
+    await runAction(async () => {
+      const { project, projectRoot } = createProject(process.cwd());
+      const { exitCode } = await runCheck(project, projectRoot);
+      if (exitCode !== 0) process.exit(exitCode);
+    });
   });
 
 cli.help();
