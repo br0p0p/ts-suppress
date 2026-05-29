@@ -5,6 +5,8 @@ import { createProject, findTsConfig } from "./project.js";
 
 const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
 const nestedFixture = resolve(import.meta.dirname!, "../fixtures/nested/packages/app");
+const solutionFixture = resolve(import.meta.dirname!, "../fixtures/solution");
+const badConfigFixture = resolve(import.meta.dirname!, "../fixtures/bad-config");
 
 test("findTsConfig finds tsconfig.json in the given directory", () => {
   const result = findTsConfig(basicFixture);
@@ -31,4 +33,22 @@ test("createProject returns a TsProject with diagnostics", () => {
 test("createProject returns the resolved project root", () => {
   const { projectRoot } = createProject(nestedFixture);
   expect(projectRoot).toBe(resolve(import.meta.dirname!, "../fixtures/nested"));
+});
+
+test("createProject throws on a solution-style tsconfig instead of silently passing", () => {
+  // A root with only "references" parses to zero input files; without a guard
+  // this would yield an empty Program and report a clean (but meaningless) check.
+  expect(() => createProject(solutionFixture)).toThrow(/solution-style/);
+});
+
+test("createProject reports every config error, not just the first", () => {
+  let message = "";
+  try {
+    createProject(badConfigFixture);
+  } catch (e) {
+    message = (e as Error).message;
+  }
+  // Both invalid options should surface in a single run.
+  expect(message).toMatch(/target/);
+  expect(message).toMatch(/strict/);
 });

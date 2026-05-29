@@ -37,7 +37,29 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
   }
   const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
   if (parsed.errors.length > 0) {
-    throw new Error(ts.flattenDiagnosticMessageText(parsed.errors[0]!.messageText, "\n"));
+    // Surface every config error at once — parseJsonConfigFileContent can report
+    // several (e.g. multiple bad compiler options), and fixing them one run at a
+    // time is needless friction.
+    throw new Error(
+      parsed.errors.map((e) => ts.flattenDiagnosticMessageText(e.messageText, "\n")).join("\n"),
+    );
+  }
+
+  // A successful parse with no input files is almost never what the user wants.
+  // The common case is a solution-style root tsconfig (only "references", no
+  // "files"/"include"): ts.createProgram would receive an empty file list and
+  // getPreEmitDiagnostics would report a clean project, silently passing `check`
+  // while doing nothing — the worst failure mode for a strictness gate.
+  if (parsed.fileNames.length === 0) {
+    if (parsed.projectReferences && parsed.projectReferences.length > 0) {
+      throw new Error(
+        `${tsConfigFilePath} is a solution-style tsconfig (only "references", no input files). ` +
+          `Point ts-suppress at a concrete leaf project's tsconfig, or run it once per referenced package.`,
+      );
+    }
+    throw new Error(
+      `No input files found for ${tsConfigFilePath}. Check its "include"/"files" settings.`,
+    );
   }
 
   logger.debug(`tsconfig files: ${parsed.fileNames.length}`);
