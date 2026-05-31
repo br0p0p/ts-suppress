@@ -45,6 +45,7 @@ test("createProject reports every config error, not just the first", () => {
   let message = "";
   try {
     createProject(badConfigFixture);
+    expect.fail("createProject should have thrown for bad-config");
   } catch (e) {
     message = (e as Error).message;
   }
