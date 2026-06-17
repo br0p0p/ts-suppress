@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v1.0.0...ts-suppress-v1.0.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* **cli:** add a top-level error boundary for command actions ([#30](https://github.com/br0p0p/ts-suppress/issues/30)) ([e691217](https://github.com/br0p0p/ts-suppress/commit/e691217128f4846c10bfd2d119f2dd0771d214b3))
+* make import() specifier hashes portable across checkouts ([#37](https://github.com/br0p0p/ts-suppress/issues/37)) ([8f357f5](https://github.com/br0p0p/ts-suppress/commit/8f357f5e4bc72a6c00b9188ccab87eb212900793))
+
 ## [1.0.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v0.6.0...ts-suppress-v1.0.0) (2026-04-27)
 
 
