@@ -404,6 +404,19 @@ describe("absolute paths are portable across checkout roots (root-aware)", () =>
   test("node_modules specifiers collapse to the bare module name", () => {
     expect(normalizeMessageForHash(a.ts7016, ci)).toContain("'archiver/index.js'");
   });
+
+  test("Windows backslash paths hash identically to POSIX forward-slash paths", () => {
+    // TS usually renders forward slashes, but a Windows checkout can surface
+    // native backslash paths (and a backslash projectRoot). Separators must not
+    // leak into the hash, so a baseline is portable between Windows and CI.
+    const win = {
+      root: "C:\\Users\\dev\\app",
+      ts7016: `Could not find a declaration file for module 'archiver'. 'C:\\Users\\dev\\app\\node_modules\\archiver\\index.js' implicitly has an 'any' type.`,
+      ts2306: `File 'C:\\Users\\dev\\app\\server\\src\\services\\pdfService.ts' is not a module.`,
+    };
+    expect(h(win.ts7016, win.root)).toBe(h(a.ts7016, ci));
+    expect(h(win.ts2306, win.root)).toBe(h(a.ts2306, ci));
+  });
 });
 
 describe("hash still discriminates", () => {

@@ -31,30 +31,33 @@ const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 // specifiers for untyped modules, missing-declaration notes (TS7016), "not a
 // module" / "cannot find module" errors (TS2306/TS2307), and more. Any absolute
 // path makes the hash depend on where the repo is checked out, so a baseline
-// built locally fails in CI. We neutralize every path, in two passes:
+// built locally fails in CI. We rewrite each absolute-path token to a portable
+// form (separators normalized to `/`):
 //
-//  1. Anything under `node_modules` collapses to the bare specifier (everything
-//     after the last `/node_modules/`). A dependency's on-disk location varies
-//     with hoisting and the package manager, so its path is never portable —
-//     the module name is the stable signal.
-//  2. Remaining paths under the checkout root collapse to a repo-relative form
-//     (forward slashes), so the same file hashes the same on every machine.
+//  - Under `node_modules` -> the bare specifier (everything after the last
+//    `/node_modules/`). A dependency's on-disk location varies with hoisting
+//    and the package manager, so the module name is the only stable signal.
+//  - Otherwise, under the checkout root -> a repo-relative path, so the same
+//    file hashes the same on every machine.
+//  - Otherwise (outside both) -> left as-is; we have nothing portable to use.
 //
-// Anything still absolute after both passes is outside the project and outside
-// node_modules — left as-is, since we have nothing portable to rewrite it to.
-const NODE_MODULES_PREFIX = /[^\s'"()]*\/node_modules\//g;
+// Matches POSIX (`/…`) and Windows (`C:\…`) runs, whether bare, single-quoted,
+// or inside `import("…")`. A token that matches none of the cases is returned
+// unchanged, so non-path text that happens to contain a slash is never touched.
 const ABS_PATH = /(?:[A-Za-z]:)?[/\\][^\s'"()]*/g;
+const NODE_MODULES = "/node_modules/";
 
 export function normalizeMessageForHash(message: string, projectRoot = ""): string {
-  let out = message.replace(NODE_MODULES_PREFIX, "");
-  if (projectRoot) {
-    const rootPrefix = projectRoot.replaceAll("\\", "/").replace(/\/?$/, "/");
-    out = out.replace(ABS_PATH, (path) => {
+  const rootPrefix = projectRoot ? projectRoot.replaceAll("\\", "/").replace(/\/?$/, "/") : "";
+  return message
+    .replace(ABS_PATH, (path) => {
       const norm = path.replaceAll("\\", "/");
-      return norm.startsWith(rootPrefix) ? norm.slice(rootPrefix.length) : path;
-    });
-  }
-  return out.replace(STRUCTURAL_QUOTED, "'<elided>'");
+      const nm = norm.lastIndexOf(NODE_MODULES);
+      if (nm !== -1) return norm.slice(nm + NODE_MODULES.length);
+      if (rootPrefix && norm.startsWith(rootPrefix)) return norm.slice(rootPrefix.length);
+      return path;
+    })
+    .replace(STRUCTURAL_QUOTED, "'<elided>'");
 }
 
 /**
