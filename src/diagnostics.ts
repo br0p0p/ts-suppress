@@ -27,8 +27,18 @@ export interface DiagnosticRecord {
 // are short but always structural by nature, so eliding them is fine.
 const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 
+// TS renders `import("…")` specifiers as absolute filesystem paths when a module
+// has no types (e.g. `typeof import("/abs/.../node_modules/bignumber.js/…")` for
+// an untyped CommonJS dependency). That absolute path makes the hash depend on
+// where the repo is checked out, so a baseline built locally fails in CI. Collapse
+// the specifier to the bare module name (everything after the last `/node_modules/`)
+// so the hash tracks the module, not the checkout root.
+const IMPORT_SPECIFIER = /import\("(?:[^"]*\/node_modules\/)?([^"]+)"\)/g;
+
 export function normalizeMessageForHash(message: string): string {
-  return message.replace(STRUCTURAL_QUOTED, "'<elided>'");
+  return message
+    .replace(IMPORT_SPECIFIER, (_, spec: string) => `import("${spec}")`)
+    .replace(STRUCTURAL_QUOTED, "'<elided>'");
 }
 
 /**

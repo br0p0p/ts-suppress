@@ -329,6 +329,40 @@ describe("TS diagnostic normalization (integration)", () => {
   });
 });
 
+describe("import() specifiers are portable across checkout roots", () => {
+  // TS renders absolute paths inside `typeof import("…")` for untyped CommonJS
+  // modules. The hash must depend on the module, not where the repo lives.
+  const ci =
+    "This expression is not constructable.\n" +
+    "Type 'typeof import(\"/home/runner/work/app/node_modules/bignumber.js/bignumber\")' has no construct signatures.";
+  const local =
+    "This expression is not constructable.\n" +
+    "Type 'typeof import(\"/Users/dev/app/node_modules/bignumber.js/bignumber\")' has no construct signatures.";
+
+  test("same module at different absolute paths normalizes identically", () => {
+    expect(normalizeMessageForHash(ci)).toBe(normalizeMessageForHash(local));
+  });
+
+  test("same module at different absolute paths hashes identically", () => {
+    expect(hashMessage(normalizeMessageForHash(ci))).toBe(
+      hashMessage(normalizeMessageForHash(local)),
+    );
+  });
+
+  test("the bare module name survives normalization", () => {
+    expect(normalizeMessageForHash(ci)).toContain("bignumber.js");
+  });
+
+  test("different modules still hash differently", () => {
+    const other =
+      "This expression is not constructable.\n" +
+      "Type 'typeof import(\"/home/runner/work/app/node_modules/moment/moment\")' has no construct signatures.";
+    expect(hashMessage(normalizeMessageForHash(ci))).not.toBe(
+      hashMessage(normalizeMessageForHash(other)),
+    );
+  });
+});
+
 describe("hash still discriminates", () => {
   test("different error codes produce different hashes", () => {
     const p = createInMemoryProject({
