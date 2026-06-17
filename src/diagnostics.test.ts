@@ -363,6 +363,49 @@ describe("import() specifiers are portable across checkout roots", () => {
   });
 });
 
+describe("absolute paths are portable across checkout roots (root-aware)", () => {
+  // 1.0.1 only normalized node_modules paths inside `import("…")`. TS embeds
+  // absolute paths in several other templates — first-party files included —
+  // so a baseline built locally still failed in CI. Normalization is now
+  // root-aware: every path under the checkout root collapses to a repo-relative
+  // form, regardless of which message template carries it.
+  const ci = "/home/runner/work/app/app";
+  const local = "/Users/dev/app";
+  const mk = (root: string) => ({
+    ts7016: `Could not find a declaration file for module 'archiver'. '${root}/node_modules/archiver/index.js' implicitly has an 'any' type.`,
+    ts2306: `File '${root}/server/src/services/pdfService.ts' is not a module.`,
+    ts2307: `Cannot find module '${root}/server/src/missing' or its corresponding type declarations.`,
+    fpImport: `Property '__awaiter' does not exist on type 'typeof import("${root}/server/src/build/services/quicksightService")'.`,
+    nmImport:
+      "This expression is not constructable.\n" +
+      `Type 'typeof import("${root}/node_modules/bignumber.js/bignumber")' has no construct signatures.`,
+  });
+  const a = mk(ci);
+  const b = mk(local);
+  const keys = Object.keys(a) as Array<keyof ReturnType<typeof mk>>;
+  const h = (msg: string, root: string) => hashMessage(normalizeMessageForHash(msg, root));
+
+  test.each(keys)("%s hashes identically across roots", (k) => {
+    expect(h(a[k], ci)).toBe(h(b[k], local));
+  });
+
+  test("no absolute path survives into the normalized message", () => {
+    for (const k of keys) {
+      expect(normalizeMessageForHash(a[k], ci)).not.toContain(ci);
+    }
+  });
+
+  test("first-party paths are relativized, not erased (still discriminating)", () => {
+    expect(normalizeMessageForHash(a.ts2306, ci)).toContain("server/src/services/pdfService.ts");
+    const other = `File '${ci}/server/src/services/otherService.ts' is not a module.`;
+    expect(h(a.ts2306, ci)).not.toBe(h(other, ci));
+  });
+
+  test("node_modules specifiers collapse to the bare module name", () => {
+    expect(normalizeMessageForHash(a.ts7016, ci)).toContain("'archiver/index.js'");
+  });
+});
+
 describe("hash still discriminates", () => {
   test("different error codes produce different hashes", () => {
     const p = createInMemoryProject({
