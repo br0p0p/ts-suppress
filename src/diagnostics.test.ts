@@ -405,6 +405,24 @@ describe("absolute paths are portable across checkout roots (root-aware)", () =>
     expect(normalizeMessageForHash(a.ts7016, ci)).toContain("'archiver/index.js'");
   });
 
+  test("real Windows tsc output (drive letter + forward slashes) is portable", () => {
+    // Verbatim from microsoft/TypeScript#41398: TS normalizes to forward
+    // slashes even on Windows and prepends the drive letter (`y:/projects/…`).
+    // The same project on a POSIX CI runner must hash identically.
+    const winRoot = "y:/projects/opf/portal/OPF.Portal.Web";
+    const ciRoot = "/home/runner/work/OPF.Portal.Web/OPF.Portal.Web";
+    const win = {
+      ts7016: `Could not find a declaration file for module 'shortid'. 'y:/projects/opf/portal/OPF.Portal.Web/node_modules/shortid/index.js' implicitly has an 'any' type.`,
+      ts7053: `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof import("y:/projects/opf/portal/OPF.Portal.Web/Content/Scripts/ts/shared/util/validation/index")'.`,
+    };
+    const ci = {
+      ts7016: `Could not find a declaration file for module 'shortid'. '/home/runner/work/OPF.Portal.Web/OPF.Portal.Web/node_modules/shortid/index.js' implicitly has an 'any' type.`,
+      ts7053: `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof import("/home/runner/work/OPF.Portal.Web/OPF.Portal.Web/Content/Scripts/ts/shared/util/validation/index")'.`,
+    };
+    expect(h(win.ts7016, winRoot)).toBe(h(ci.ts7016, ciRoot));
+    expect(h(win.ts7053, winRoot)).toBe(h(ci.ts7053, ciRoot));
+  });
+
   test("Windows backslash paths hash identically to POSIX forward-slash paths", () => {
     // TS usually renders forward slashes, but a Windows checkout can surface
     // native backslash paths (and a backslash projectRoot). Separators must not
