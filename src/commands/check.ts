@@ -3,7 +3,7 @@ import { LogLevels } from "consola";
 import type { TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
 import { logger } from "../logger.js";
-import { readSuppressions, diffSuppressions } from "../suppressions.js";
+import { readSuppressions, diffSuppressions, describeSuppression } from "../suppressions.js";
 import type { Suppression } from "../types.js";
 
 export interface CheckResult {
@@ -63,7 +63,9 @@ export async function runCheck(
   if (stale.length > 0) {
     logger.error(`\n${stale.length} stale suppression(s):\n`);
     for (const s of stale) {
-      logger.error(`  TS${s.code} in ${s.file}`);
+      // describeSuppression is the single source for a suppression's identity,
+      // so check output matches `update --log-level` and keeps hash/scope.
+      logger.error(`  ${describeSuppression(s)}`);
     }
   }
 

@@ -151,6 +151,9 @@ test.concurrent("check detects stale suppressions and exits 1", () =>
     const { exitCode, stderr } = await run(["check"], tempDir);
     expect(exitCode).toBe(1);
     expect(stderr).toContain("stale");
+    // Stale lines use describeSuppression: `<file> TS<code> <hash8>` — hash and
+    // scope are no longer dropped, matching `update --log-level` output.
+    expect(stderr).toMatch(/has-errors\.ts TS\d+ [0-9a-f]{8}/);
   }));
 
 // --- Update ---
