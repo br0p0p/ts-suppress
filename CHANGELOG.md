@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.2](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v1.0.1...ts-suppress-v1.0.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* neutralize all absolute paths in the hash, not just node_modules ([#38](https://github.com/br0p0p/ts-suppress/issues/38)) ([3f62855](https://github.com/br0p0p/ts-suppress/commit/3f6285538992a3ea80a6809127c4002c0ed24c7a))
+
+
+### Refactoring
+
+* **commands:** unify suppressions-root param name and stale rendering ([#34](https://github.com/br0p0p/ts-suppress/issues/34)) ([876beb7](https://github.com/br0p0p/ts-suppress/commit/876beb75bf01e3ba2f37f77a85b7ba2ac594d2fb))
+
 ## [1.0.1](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v1.0.0...ts-suppress-v1.0.1) (2026-06-17)
 
 
