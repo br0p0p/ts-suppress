@@ -27,17 +27,36 @@ export interface DiagnosticRecord {
 // are short but always structural by nature, so eliding them is fine.
 const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 
-// TS renders `import("…")` specifiers as absolute filesystem paths when a module
-// has no types (e.g. `typeof import("/abs/.../node_modules/bignumber.js/…")` for
-// an untyped CommonJS dependency). That absolute path makes the hash depend on
-// where the repo is checked out, so a baseline built locally fails in CI. Collapse
-// the specifier to the bare module name (everything after the last `/node_modules/`)
-// so the hash tracks the module, not the checkout root.
-const IMPORT_SPECIFIER = /import\("(?:[^"]*\/node_modules\/)?([^"]+)"\)/g;
+// TS embeds absolute filesystem paths in many message templates: `import("…")`
+// specifiers for untyped modules, missing-declaration notes (TS7016), "not a
+// module" / "cannot find module" errors (TS2306/TS2307), and more. Any absolute
+// path makes the hash depend on where the repo is checked out, so a baseline
+// built locally fails in CI. We rewrite each absolute-path token to a portable
+// form (separators normalized to `/`):
+//
+//  - Under `node_modules` -> the bare specifier (everything after the last
+//    `/node_modules/`). A dependency's on-disk location varies with hoisting
+//    and the package manager, so the module name is the only stable signal.
+//  - Otherwise, under the checkout root -> a repo-relative path, so the same
+//    file hashes the same on every machine.
+//  - Otherwise (outside both) -> left as-is; we have nothing portable to use.
+//
+// Matches POSIX (`/…`) and Windows (`C:\…`) runs, whether bare, single-quoted,
+// or inside `import("…")`. A token that matches none of the cases is returned
+// unchanged, so non-path text that happens to contain a slash is never touched.
+const ABS_PATH = /(?:[A-Za-z]:)?[/\\][^\s'"()]*/g;
+const NODE_MODULES = "/node_modules/";
 
-export function normalizeMessageForHash(message: string): string {
+export function normalizeMessageForHash(message: string, projectRoot = ""): string {
+  const rootPrefix = projectRoot ? projectRoot.replaceAll("\\", "/").replace(/\/?$/, "/") : "";
   return message
-    .replace(IMPORT_SPECIFIER, (_, spec: string) => `import("${spec}")`)
+    .replace(ABS_PATH, (path) => {
+      const norm = path.replaceAll("\\", "/");
+      const nm = norm.lastIndexOf(NODE_MODULES);
+      if (nm !== -1) return norm.slice(nm + NODE_MODULES.length);
+      if (rootPrefix && norm.startsWith(rootPrefix)) return norm.slice(rootPrefix.length);
+      return path;
+    })
     .replace(STRUCTURAL_QUOTED, "'<elided>'");
 }
 
@@ -96,7 +115,7 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
     const filePath = relative(projectRoot, sourceFile.fileName);
     const code = diag.code;
     const rawMessage = ts.flattenDiagnosticMessageText(diag.messageText, "\n");
-    const message = normalizeMessageForHash(rawMessage);
+    const message = normalizeMessageForHash(rawMessage, projectRoot);
     const hash = hashMessage(message);
 
     const start = diag.start;

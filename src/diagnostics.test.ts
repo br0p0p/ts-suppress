@@ -363,6 +363,80 @@ describe("import() specifiers are portable across checkout roots", () => {
   });
 });
 
+describe("absolute paths are portable across checkout roots (root-aware)", () => {
+  // 1.0.1 only normalized node_modules paths inside `import("…")`. TS embeds
+  // absolute paths in several other templates — first-party files included —
+  // so a baseline built locally still failed in CI. Normalization is now
+  // root-aware: every path under the checkout root collapses to a repo-relative
+  // form, regardless of which message template carries it.
+  const ci = "/home/runner/work/app/app";
+  const local = "/Users/dev/app";
+  const mk = (root: string) => ({
+    ts7016: `Could not find a declaration file for module 'archiver'. '${root}/node_modules/archiver/index.js' implicitly has an 'any' type.`,
+    ts2306: `File '${root}/server/src/services/pdfService.ts' is not a module.`,
+    ts2307: `Cannot find module '${root}/server/src/missing' or its corresponding type declarations.`,
+    fpImport: `Property '__awaiter' does not exist on type 'typeof import("${root}/server/src/build/services/quicksightService")'.`,
+    nmImport:
+      "This expression is not constructable.\n" +
+      `Type 'typeof import("${root}/node_modules/bignumber.js/bignumber")' has no construct signatures.`,
+  });
+  const a = mk(ci);
+  const b = mk(local);
+  const keys = Object.keys(a) as Array<keyof ReturnType<typeof mk>>;
+  const h = (msg: string, root: string) => hashMessage(normalizeMessageForHash(msg, root));
+
+  test.each(keys)("%s hashes identically across roots", (k) => {
+    expect(h(a[k], ci)).toBe(h(b[k], local));
+  });
+
+  test("no absolute path survives into the normalized message", () => {
+    for (const k of keys) {
+      expect(normalizeMessageForHash(a[k], ci)).not.toContain(ci);
+    }
+  });
+
+  test("first-party paths are relativized, not erased (still discriminating)", () => {
+    expect(normalizeMessageForHash(a.ts2306, ci)).toContain("server/src/services/pdfService.ts");
+    const other = `File '${ci}/server/src/services/otherService.ts' is not a module.`;
+    expect(h(a.ts2306, ci)).not.toBe(h(other, ci));
+  });
+
+  test("node_modules specifiers collapse to the bare module name", () => {
+    expect(normalizeMessageForHash(a.ts7016, ci)).toContain("'archiver/index.js'");
+  });
+
+  test("real Windows tsc output (drive letter + forward slashes) is portable", () => {
+    // Verbatim from microsoft/TypeScript#41398: TS normalizes to forward
+    // slashes even on Windows and prepends the drive letter (`y:/projects/…`).
+    // The same project on a POSIX CI runner must hash identically.
+    const winRoot = "y:/projects/opf/portal/OPF.Portal.Web";
+    const ciRoot = "/home/runner/work/OPF.Portal.Web/OPF.Portal.Web";
+    const win = {
+      ts7016: `Could not find a declaration file for module 'shortid'. 'y:/projects/opf/portal/OPF.Portal.Web/node_modules/shortid/index.js' implicitly has an 'any' type.`,
+      ts7053: `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof import("y:/projects/opf/portal/OPF.Portal.Web/Content/Scripts/ts/shared/util/validation/index")'.`,
+    };
+    const ci = {
+      ts7016: `Could not find a declaration file for module 'shortid'. '/home/runner/work/OPF.Portal.Web/OPF.Portal.Web/node_modules/shortid/index.js' implicitly has an 'any' type.`,
+      ts7053: `Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof import("/home/runner/work/OPF.Portal.Web/OPF.Portal.Web/Content/Scripts/ts/shared/util/validation/index")'.`,
+    };
+    expect(h(win.ts7016, winRoot)).toBe(h(ci.ts7016, ciRoot));
+    expect(h(win.ts7053, winRoot)).toBe(h(ci.ts7053, ciRoot));
+  });
+
+  test("Windows backslash paths hash identically to POSIX forward-slash paths", () => {
+    // TS usually renders forward slashes, but a Windows checkout can surface
+    // native backslash paths (and a backslash projectRoot). Separators must not
+    // leak into the hash, so a baseline is portable between Windows and CI.
+    const win = {
+      root: "C:\\Users\\dev\\app",
+      ts7016: `Could not find a declaration file for module 'archiver'. 'C:\\Users\\dev\\app\\node_modules\\archiver\\index.js' implicitly has an 'any' type.`,
+      ts2306: `File 'C:\\Users\\dev\\app\\server\\src\\services\\pdfService.ts' is not a module.`,
+    };
+    expect(h(win.ts7016, win.root)).toBe(h(a.ts7016, ci));
+    expect(h(win.ts2306, win.root)).toBe(h(a.ts2306, ci));
+  });
+});
+
 describe("hash still discriminates", () => {
   test("different error codes produce different hashes", () => {
     const p = createInMemoryProject({
