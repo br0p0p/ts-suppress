@@ -47,6 +47,24 @@ const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
 const ABS_PATH = /(?:[A-Za-z]:)?[/\\][^\s'"()]*/g;
 const NODE_MODULES = "/node_modules/";
 
+// TS2739/TS2740 ("Type 'X' is missing the following properties from type 'Y':
+// a, b, c") list the missing property names in the target type's declaration
+// order. That order tracks TypeScript's global symbol-discovery order, so adding
+// an unrelated file elsewhere in the program can reshuffle the list without the
+// error itself changing — a spurious suppression regeneration. Sort the names so
+// the hash depends on the set of missing properties, not their incidental order.
+//
+// ponytail: TS2740's "…, and N more." truncated form only sorts the shown names;
+// which names TS picks to show can still shift. Rare (the cap is generous and
+// most lists show in full), so we accept it. Revisit if truncated 2740s churn.
+const MISSING_PROPS = /( is missing the following properties from type '[^']*': )([^\n]+)/g;
+
+function sortMissingProperties(list: string): string {
+  const more = list.match(/, and \d+ more\.$/);
+  const names = more ? list.slice(0, more.index) : list;
+  return names.split(", ").sort().join(", ") + (more ? more[0] : "");
+}
+
 export function normalizeMessageForHash(message: string, projectRoot = ""): string {
   const rootPrefix = projectRoot ? projectRoot.replaceAll("\\", "/").replace(/\/?$/, "/") : "";
   return message
@@ -57,7 +75,11 @@ export function normalizeMessageForHash(message: string, projectRoot = ""): stri
       if (rootPrefix && norm.startsWith(rootPrefix)) return norm.slice(rootPrefix.length);
       return path;
     })
-    .replace(STRUCTURAL_QUOTED, "'<elided>'");
+    .replace(STRUCTURAL_QUOTED, "'<elided>'")
+    .replace(
+      MISSING_PROPS,
+      (_m, prefix: string, list: string) => prefix + sortMissingProperties(list),
+    );
 }
 
 /**

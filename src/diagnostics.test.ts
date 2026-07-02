@@ -149,6 +149,21 @@ describe("normalizeMessageForHash (unit)", () => {
       "Type '{}' is missing the following properties from type '{ a: number; }': a",
       "Type '<elided>' is missing the following properties from type '<elided>': a",
     ],
+    [
+      "missing-property list is sorted so incidental order does not change the hash",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': getValues, register, formErrors, control",
+      "Type '<elided>' is missing the following properties from type '<elided>': control, formErrors, getValues, register",
+    ],
+    [
+      "reordered missing-property list normalizes identically to the sorted form",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': control, getValues, register, formErrors",
+      "Type '<elided>' is missing the following properties from type '<elided>': control, formErrors, getValues, register",
+    ],
+    [
+      "truncated '... and N more.' suffix is preserved while shown names sort",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': d, b, a, and 3 more.",
+      "Type '<elided>' is missing the following properties from type '<elided>': a, b, d, and 3 more.",
+    ],
   ];
 
   test.each(cases)("%s", (_label, input, expected) => {
