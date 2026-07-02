@@ -65,7 +65,7 @@ Example `.ts-suppressions.json` entry:
 { "file": "src/api.ts", "code": 2322, "scope": "MyClass.myMethod" }
 ```
 
-Two errors with the same `file + code + scope` are treated as the same suppression. If a scope has more than one error of the same code, each occurrence gets its own entry, and duplicates are matched by count rather than deduplicated — fix one and `check` reports the rest as still-unsuppressed.
+Suppressions with the same `file + code + scope` are matched by occurrence count, not deduplicated. If a scope has N errors of one code, the file holds N identical entries; fix one and `check` reports the remaining N−1 as still-unsuppressed.
 
 **Tradeoff:** because identity is anchored to the enclosing named node rather than the error message, suppressions are sticky — they survive refactors that don't move or rename that node, even if the error's wording changes. The flip side is that the tool can't tell when an error morphs into a different error of the same code inside the same scope: if you fix the original problem but introduce a new TS2322 in the same method, it stays silently suppressed. Module-level errors (outside any named function, class, or block) all share the empty `""` scope, so distinct module-level errors of the same code are indistinguishable from each other.
 
