@@ -149,6 +149,46 @@ describe("normalizeMessageForHash (unit)", () => {
       "Type '{}' is missing the following properties from type '{ a: number; }': a",
       "Type '<elided>' is missing the following properties from type '<elided>': a",
     ],
+    [
+      "missing-property list is sorted so incidental order does not change the hash",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': getValues, register, formErrors, control",
+      "Type '<elided>' is missing the following properties from type '<elided>': control, formErrors, getValues, register",
+    ],
+    [
+      "reordered missing-property list normalizes identically to the sorted form",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': control, getValues, register, formErrors",
+      "Type '<elided>' is missing the following properties from type '<elided>': control, formErrors, getValues, register",
+    ],
+    [
+      "truncated '... and N more.' list collapses to a stable total count (shown names dropped)",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': d, b, a, and 3 more.",
+      "Type '<elided>' is missing the following properties from type '<elided>': 6 missing",
+    ],
+    [
+      "two truncated lists showing different subsets of the same total hash-collapse",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': x, y, z, w, and 7 more.",
+      "Type '<elided>' is missing the following properties from type '<elided>': 11 missing",
+    ],
+    [
+      "union members inside a rendered type name are sorted",
+      "Property 'width' does not exist on type 'Event | HTMLImageElement | HTMLCanvasElement'.",
+      "Property 'width' does not exist on type 'Event | HTMLCanvasElement | HTMLImageElement'.",
+    ],
+    [
+      "a union in either order normalizes to the same sorted form",
+      "Property 'width' does not exist on type 'HTMLCanvasElement | Event | HTMLImageElement'.",
+      "Property 'width' does not exist on type 'Event | HTMLCanvasElement | HTMLImageElement'.",
+    ],
+    [
+      "function-type unions are left untouched (top-level '|' is not a plain union)",
+      "Type 'x' is not assignable to type '(a: number) => void | Promise<unknown>'.",
+      "Type 'x' is not assignable to type '(a: number) => void | Promise<unknown>'.",
+    ],
+    [
+      "unions nested in generics/tuples are left to their enclosing span",
+      `Type 'x' is not assignable to type 'Pick<number, "toFixed" | "valueOf">'.`,
+      `Type 'x' is not assignable to type 'Pick<number, "toFixed" | "valueOf">'.`,
+    ],
   ];
 
   test.each(cases)("%s", (_label, input, expected) => {
@@ -159,6 +199,21 @@ describe("normalizeMessageForHash (unit)", () => {
     const once = normalizeMessageForHash("Type '{ a: 1 }' is not assignable to type 'Foo'.");
     const twice = normalizeMessageForHash(once);
     expect(twice).toBe(once);
+  });
+
+  test.each([
+    [
+      "missing-property sort",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': c, a, b",
+    ],
+    [
+      "truncated count collapse",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': d, b, a, and 3 more.",
+    ],
+    ["union member sort", "Property 'x' does not exist on type 'C | A | B'."],
+  ])("the %s path is idempotent on its own output", (_label, input) => {
+    const once = normalizeMessageForHash(input);
+    expect(normalizeMessageForHash(once)).toBe(once);
   });
 });
 
@@ -176,8 +231,10 @@ describe("normalizeMessageForHash (property)", () => {
   );
 
   // A non-structural quoted span: no '/newline (so the regex can find both
-  // quote delimiters) and no {/}/... (so the regex skips it).
-  const nonStructuralPayload = fc.string().map((s) => s.replaceAll(/['\n{}]|\.\.\./g, ""));
+  // quote delimiters), no {/}/... (so the elision regex skips it), and no '|'
+  // (so the union-member sort leaves it untouched — unions are covered by the
+  // unit cases above).
+  const nonStructuralPayload = fc.string().map((s) => s.replaceAll(/['\n{}|]|\.\.\./g, ""));
 
   test("structural payloads collapse to identical hashes regardless of contents", () => {
     fc.assert(
