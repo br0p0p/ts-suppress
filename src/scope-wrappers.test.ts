@@ -5,7 +5,7 @@ import { buildScopePath } from "./scope.js";
 import { findNodeAtPosition } from "./ast.js";
 
 // Separate fixture so we can grow these cases without touching the existing
-// scoped fixture (which is pinned by golden snapshot tests).
+// scoped fixture, which the scope-derivation assertions in scope.test.ts pin.
 const fixtureDir = resolve(import.meta.dirname!, "../fixtures/scoped-wrappers");
 
 const scopes = (() => {
