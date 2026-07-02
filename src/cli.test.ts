@@ -23,7 +23,10 @@ function run(
   cwd: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((res) => {
-    execFile(TSX_BIN, [CLI, ...args], { cwd }, (error, stdout, stderr) => {
+    // Force color off in the child so debug/tsc output is deterministic
+    // regardless of the parent shell's FORCE_COLOR/TTY state (matches CI).
+    const env = { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" };
+    execFile(TSX_BIN, [CLI, ...args], { cwd, env }, (error, stdout, stderr) => {
       res({ exitCode: (error?.code as number | undefined) ?? 0, stdout, stderr });
     });
   });

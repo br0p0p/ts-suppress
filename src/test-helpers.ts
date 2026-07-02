@@ -1,6 +1,16 @@
 import ts from "typescript";
 import type { TsProject } from "./project.js";
 
+// Strip ANSI color codes so output assertions are deterministic regardless of
+// the ambient FORCE_COLOR / NO_COLOR / TTY state (styleStderr and tsc's
+// formatters colorize based on the environment). Tests assert text content, not
+// color, so they compare against the stripped form. The ESC byte is built via
+// fromCharCode so no control character appears literally in source.
+const ANSI = new RegExp(String.fromCharCode(27) + "\\[[0-9;]*m", "g");
+export function stripAnsi(text: string): string {
+  return text.replace(ANSI, "");
+}
+
 export function createInMemoryProject(files: Record<string, string>): TsProject {
   const fileMap = new Map<string, string>();
   const fileNames: string[] = [];

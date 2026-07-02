@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { runCheck } from "./check.js";
 import { runSuppress } from "./suppress.js";
 import { writeSuppressions } from "../suppressions.js";
-import { createInMemoryProject } from "../test-helpers.js";
+import { createInMemoryProject, stripAnsi } from "../test-helpers.js";
 
 let tempDir: string;
 
@@ -197,11 +197,18 @@ test("check prints unsuppressed errors in tsc format", async () => {
     return true;
   }) as typeof process.stderr.write;
   process.stderr.write = write;
+  // Force the plain (non-color) tsc formatter so the assertion is deterministic
+  // regardless of the shell's FORCE_COLOR — the color formatter uses a different
+  // "file:line:col - error" code-frame layout, not "file(line,col): error".
+  const prevNoColor = process.env["NO_COLOR"];
+  process.env["NO_COLOR"] = "1";
   try {
     await runCheck(errorProject(), "/", tempDir);
   } finally {
     process.stderr.write = origWrite;
+    if (prevNoColor === undefined) delete process.env["NO_COLOR"];
+    else process.env["NO_COLOR"] = prevNoColor;
   }
-  const output = chunks.join("");
+  const output = stripAnsi(chunks.join(""));
   expect(output).toMatch(/has-errors\.ts\(\d+,\d+\): error TS\d+:/);
 });

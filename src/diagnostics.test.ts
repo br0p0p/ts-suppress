@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { collectDiagnostics, formatDebugRecord } from "./diagnostics.js";
 import { logger, setLogLevel } from "./logger.js";
-import { createInMemoryProject } from "./test-helpers.js";
+import { createInMemoryProject, stripAnsi } from "./test-helpers.js";
 
 const errorProject = createInMemoryProject({
   "has-errors.ts": 'export const bad: number = "not a number";',
@@ -75,19 +75,19 @@ describe("formatDebugRecord (unit)", () => {
   const RAW = "Type 'string' is not assignable to type 'number'.";
 
   test("header omits scope when scope is empty", () => {
-    const out = formatDebugRecord("foo.ts", 2322, "", RAW);
+    const out = stripAnsi(formatDebugRecord("foo.ts", 2322, "", RAW));
     const header = out.split("\n")[0]!;
     expect(header).toMatch(/^foo\.ts TS2322$/);
   });
 
   test("header includes scope after a colon when present", () => {
-    const out = formatDebugRecord("foo.ts", 2322, "Svc.run", RAW);
+    const out = stripAnsi(formatDebugRecord("foo.ts", 2322, "Svc.run", RAW));
     const header = out.split("\n")[0]!;
     expect(header).toMatch(/^foo\.ts:Svc\.run TS2322$/);
   });
 
   test("message row is aligned to a 7-char label width", () => {
-    const out = formatDebugRecord("foo.ts", 2322, "", RAW);
+    const out = stripAnsi(formatDebugRecord("foo.ts", 2322, "", RAW));
     expect(out).toMatch(/^ {2}message {2}Type 'string'/m);
   });
 
@@ -95,7 +95,7 @@ describe("formatDebugRecord (unit)", () => {
     // Use a flush-left continuation so the assertion isolates the formatter's
     // prefix from any leading whitespace TS embeds in chained sub-messages.
     const value = "first line\nsecond line";
-    const out = formatDebugRecord("foo.ts", 2322, "", value);
+    const out = stripAnsi(formatDebugRecord("foo.ts", 2322, "", value));
     // Continuation column = 2 (indent) + 7 (label width) + 2 (separator) = 11 spaces.
     expect(out).toMatch(/^ {11}second line$/m);
     // First line of the field still uses the labelled prefix.
@@ -150,7 +150,7 @@ describe("debug-level emission via consola mockTypes", () => {
     // First call is the "diagnostics: N" summary; per-record traces follow.
     const [, firstRecord] = vi.mocked(logger.debug).mock.calls;
     expect(firstRecord).toBeDefined();
-    const msg = String(firstRecord![0]);
+    const msg = stripAnsi(String(firstRecord![0]));
     expect(msg).toMatch(/^a\.ts TS2322$/m);
     expect(msg).toMatch(/^ {2}message {2}Type 'string'/m);
   });
