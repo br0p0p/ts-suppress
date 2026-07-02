@@ -54,15 +54,65 @@ const NODE_MODULES = "/node_modules/";
 // error itself changing — a spurious suppression regeneration. Sort the names so
 // the hash depends on the set of missing properties, not their incidental order.
 //
-// ponytail: TS2740's "…, and N more." truncated form only sorts the shown names;
-// which names TS picks to show can still shift. Rare (the cap is generous and
-// most lists show in full), so we accept it. Revisit if truncated 2740s churn.
+// TS2740's "…, and N more." truncated form is worse: which names TS shows in the
+// visible prefix also shifts with discovery order, so sorting the shown subset
+// can't stabilize it (the members themselves differ between runs). For truncated
+// lists we drop the names entirely and hash on the total missing count (visible +
+// N more), which is a property of the type mismatch, not of discovery order.
 const MISSING_PROPS = /( is missing the following properties from type '[^']*': )([^\n]+)/g;
 
 function sortMissingProperties(list: string): string {
-  const more = list.match(/, and \d+ more\.$/);
-  const names = more ? list.slice(0, more.index) : list;
-  return names.split(", ").sort().join(", ") + (more ? more[0] : "");
+  const more = list.match(/, and (\d+) more\.$/);
+  if (more) {
+    const shown = list.slice(0, more.index).split(", ").length;
+    return `${shown + Number(more[1])} missing`;
+  }
+  return list.split(", ").sort().join(", ");
+}
+
+// TypeScript renders union types ("A | B | C") in the same discovery-order that
+// destabilizes property lists, so a union inside a rendered type name (e.g.
+// TS2339 "Property 'x' does not exist on type 'Event | HTMLCanvasElement'") churns
+// the hash the same way. Sort the members of every non-elided quoted type span.
+//
+// Function and conditional types ("(a) => X | Y", "T extends U ? X : Y") are
+// skipped: their top-level "|" does not delimit a plain union, so reordering
+// around it would be meaningless. Members are split depth-aware so unions nested
+// inside generics/tuples/objects (Pick<…, "a" | "b">, [x, "a" | "b"]) are left to
+// their enclosing span — top-level sorting already clears the churn we observe.
+const QUOTED_SPAN = /'[^'\n]*'/g;
+
+function splitTopLevelUnion(body: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let inString = false;
+  let current = "";
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i]!;
+    if (ch === '"') inString = !inString;
+    if (!inString) {
+      if ("<([{".includes(ch)) depth++;
+      else if (">)]}".includes(ch)) depth--;
+      else if (depth === 0 && ch === "|" && body[i - 1] === " " && body[i + 1] === " ") {
+        parts.push(current.trim());
+        current = "";
+        i++;
+        continue;
+      }
+    }
+    current += ch;
+  }
+  parts.push(current.trim());
+  return parts;
+}
+
+function sortUnionMembers(span: string): string {
+  const body = span.slice(1, -1);
+  if (!body.includes(" | ")) return span;
+  if (body.includes("=>") || body.includes(" extends ")) return span;
+  const members = splitTopLevelUnion(body);
+  if (members.length < 2) return span;
+  return `'${members.sort().join(" | ")}'`;
 }
 
 export function normalizeMessageForHash(message: string, projectRoot = ""): string {
@@ -79,7 +129,8 @@ export function normalizeMessageForHash(message: string, projectRoot = ""): stri
     .replace(
       MISSING_PROPS,
       (_m, prefix: string, list: string) => prefix + sortMissingProperties(list),
-    );
+    )
+    .replace(QUOTED_SPAN, sortUnionMembers);
 }
 
 /**

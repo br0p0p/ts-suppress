@@ -160,9 +160,34 @@ describe("normalizeMessageForHash (unit)", () => {
       "Type '<elided>' is missing the following properties from type '<elided>': control, formErrors, getValues, register",
     ],
     [
-      "truncated '... and N more.' suffix is preserved while shown names sort",
+      "truncated '... and N more.' list collapses to a stable total count (shown names dropped)",
       "Type '{}' is missing the following properties from type '{ a: 1; }': d, b, a, and 3 more.",
-      "Type '<elided>' is missing the following properties from type '<elided>': a, b, d, and 3 more.",
+      "Type '<elided>' is missing the following properties from type '<elided>': 6 missing",
+    ],
+    [
+      "two truncated lists showing different subsets of the same total hash-collapse",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': x, y, z, w, and 7 more.",
+      "Type '<elided>' is missing the following properties from type '<elided>': 11 missing",
+    ],
+    [
+      "union members inside a rendered type name are sorted",
+      "Property 'width' does not exist on type 'Event | HTMLImageElement | HTMLCanvasElement'.",
+      "Property 'width' does not exist on type 'Event | HTMLCanvasElement | HTMLImageElement'.",
+    ],
+    [
+      "a union in either order normalizes to the same sorted form",
+      "Property 'width' does not exist on type 'HTMLCanvasElement | Event | HTMLImageElement'.",
+      "Property 'width' does not exist on type 'Event | HTMLCanvasElement | HTMLImageElement'.",
+    ],
+    [
+      "function-type unions are left untouched (top-level '|' is not a plain union)",
+      "Type 'x' is not assignable to type '(a: number) => void | Promise<unknown>'.",
+      "Type 'x' is not assignable to type '(a: number) => void | Promise<unknown>'.",
+    ],
+    [
+      "unions nested in generics/tuples are left to their enclosing span",
+      `Type 'x' is not assignable to type 'Pick<number, "toFixed" | "valueOf">'.`,
+      `Type 'x' is not assignable to type 'Pick<number, "toFixed" | "valueOf">'.`,
     ],
   ];
 
@@ -191,8 +216,10 @@ describe("normalizeMessageForHash (property)", () => {
   );
 
   // A non-structural quoted span: no '/newline (so the regex can find both
-  // quote delimiters) and no {/}/... (so the regex skips it).
-  const nonStructuralPayload = fc.string().map((s) => s.replaceAll(/['\n{}]|\.\.\./g, ""));
+  // quote delimiters), no {/}/... (so the elision regex skips it), and no '|'
+  // (so the union-member sort leaves it untouched — unions are covered by the
+  // unit cases above).
+  const nonStructuralPayload = fc.string().map((s) => s.replaceAll(/['\n{}|]|\.\.\./g, ""));
 
   test("structural payloads collapse to identical hashes regardless of contents", () => {
     fc.assert(
