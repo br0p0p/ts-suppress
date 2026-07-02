@@ -1,0 +1,3 @@
+{"suppressions": [
+  {"file":"packages/app/index.ts","code":2322,"scope":""}
+]}

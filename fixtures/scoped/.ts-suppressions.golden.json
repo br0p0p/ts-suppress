@@ -1,0 +1,18 @@
+{"suppressions": [
+  {"file":"scoped-errors.ts","code":2304,"scope":"MyEnum"},
+  {"file":"scoped-errors.ts","code":2304,"scope":"MyInterface"},
+  {"file":"scoped-errors.ts","code":2304,"scope":"MyTypeAlias"},
+  {"file":"scoped-errors.ts","code":2322,"scope":""},
+  {"file":"scoped-errors.ts","code":2322,"scope":"ClassWithArrowProp.handler"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"ClassWithObjectProp.config"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"handler"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"myClassExpr.method"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"MyNamespace"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"namedFnExpr"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"obj.handler"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"obj2"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"objectVar"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"processData"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"UserService.get:name"},
+  {"file":"scoped-errors.ts","code":2322,"scope":"UserService.validate"}
+]}
