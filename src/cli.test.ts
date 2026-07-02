@@ -23,7 +23,10 @@ function run(
   cwd: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((res) => {
-    execFile(TSX_BIN, [CLI, ...args], { cwd }, (error, stdout, stderr) => {
+    // Force color off in the child so debug/tsc output is deterministic
+    // regardless of the parent shell's FORCE_COLOR/TTY state (matches CI).
+    const env = { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" };
+    execFile(TSX_BIN, [CLI, ...args], { cwd, env }, (error, stdout, stderr) => {
       res({ exitCode: (error?.code as number | undefined) ?? 0, stdout, stderr });
     });
   });
@@ -151,9 +154,9 @@ test.concurrent("check detects stale suppressions and exits 1", () =>
     const { exitCode, stderr } = await run(["check"], tempDir);
     expect(exitCode).toBe(1);
     expect(stderr).toContain("stale");
-    // Stale lines use describeSuppression: `<file> TS<code> <hash8>` — hash and
-    // scope are no longer dropped, matching `update --log-level` output.
-    expect(stderr).toMatch(/has-errors\.ts TS\d+ [0-9a-f]{8}/);
+    // Stale lines use describeSuppression: `<file> TS<code>[ [scope]]` — no
+    // hash, matching `update --log-level` output.
+    expect(stderr).toMatch(/has-errors\.ts TS\d+/);
   }));
 
 // --- Update ---
@@ -222,18 +225,18 @@ test.concurrent("fix produces identical file to update", () =>
 
 // --- Log level ---
 
-test.concurrent("--log-level debug traces hash transformation on stderr", () =>
+test.concurrent("--log-level debug traces the raw diagnostic message on stderr", () =>
   withFixture(async (tempDir) => {
     const { exitCode, stderr } = await run(["suppress", "--log-level", "debug"], tempDir);
     expect(exitCode).toBe(0);
     // Header tag identifies debug lines without polluting the value columns.
     expect(stderr).toContain("[debug]");
     expect(stderr).toMatch(/TS\d+/);
-    // Field rows: aligned label/value pairs (label "normalized" is the widest).
-    expect(stderr).toMatch(/ {2}hash {8}/);
-    expect(stderr).toMatch(/ {2}raw {9}/);
-    expect(stderr).toMatch(/ {2}normalized {2}/);
-    // The actual diagnostic text appears in the value columns.
+    // Message row: aligned label/value pair, no hash or normalized rows.
+    expect(stderr).toMatch(/ {2}message {2}/);
+    expect(stderr).not.toContain("hash");
+    expect(stderr).not.toContain("normalized");
+    // The actual diagnostic text appears in the value column.
     expect(stderr).toContain("Type 'string' is not assignable to type 'number'.");
   }));
 

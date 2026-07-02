@@ -7,14 +7,15 @@ import { collectDiagnostics } from "./diagnostics.js";
 import { createProject } from "./project.js";
 import { SUPPRESSIONS_FILENAME, writeSuppressions } from "./suppressions.js";
 
-// Pin the full suppress pipeline against real fixtures. Any change to hashing,
-// scope resolution, or file output that drifts a suppression surfaces here as
-// a snapshot diff. To intentionally update after a TS upgrade or behavior
-// change, run `pnpm test -- -u`.
+// Pin the full suppress pipeline against real fixtures: real tsconfig ->
+// collectDiagnostics -> scope resolution -> file output. Any drift in scope
+// resolution or file format surfaces here as a snapshot diff — coverage the
+// in-memory unit tests don't provide. To intentionally update after a TS
+// upgrade or behavior change, run `pnpm test -- -u`.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesRoot = resolve(__dirname, "..", "fixtures");
 
-const FIXTURES = ["basic", "scoped", "nested", "codes"] as const;
+const FIXTURES = ["basic", "scoped", "nested"] as const;
 
 describe("golden suppressions", () => {
   let tempDir: string;

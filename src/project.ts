@@ -45,9 +45,9 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
     logger.trace(`tsconfig options: ${JSON.stringify(parsed.options, null, 2)}`);
   }
 
-  // noErrorTruncation keeps diagnostic messages stable: TS's default truncation
-  // budget can shift based on file-wide type rendering, which changes the hash
-  // for completely unrelated edits.
+  // noErrorTruncation disables TS's default message-truncation budget so the raw
+  // diagnostic text shown by `--log-level debug` is complete. It no longer affects
+  // suppression identity (that is file + code + scope now) — only debug readability.
   const program = ts.createProgram(parsed.fileNames, {
     ...parsed.options,
     noErrorTruncation: true,

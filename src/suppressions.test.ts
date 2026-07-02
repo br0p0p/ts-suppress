@@ -12,28 +12,6 @@ import {
 } from "./suppressions.js";
 import type { Suppression } from "./types.js";
 
-describe("describeSuppression", () => {
-  test("includes file, code, and 8-char hash prefix when scope is empty", () => {
-    const s: Suppression = {
-      file: "src/a.ts",
-      code: 2322,
-      hash: "abcdef1234567890",
-      scope: "",
-    };
-    expect(describeSuppression(s)).toBe("src/a.ts TS2322 abcdef12");
-  });
-
-  test("appends [scope] when present", () => {
-    const s: Suppression = {
-      file: "src/a.ts",
-      code: 2322,
-      hash: "abcdef1234567890",
-      scope: "Svc.run",
-    };
-    expect(describeSuppression(s)).toBe("src/a.ts TS2322 abcdef12 [Svc.run]");
-  });
-});
-
 let tempDir: string;
 
 beforeEach(async () => {
@@ -55,8 +33,8 @@ test("readSuppressions returns empty array when file does not exist", async () =
 
 test("writeSuppressions creates a sorted JSON file", async () => {
   const suppressions: Suppression[] = [
-    { file: "src/b.ts", code: 2322, hash: "bbb", scope: "fnB" },
-    { file: "src/a.ts", code: 2322, hash: "aaa", scope: "fnA" },
+    { file: "src/b.ts", code: 2322, scope: "fnB" },
+    { file: "src/a.ts", code: 2322, scope: "fnA" },
   ];
 
   await writeSuppressions(tempDir, suppressions);
@@ -66,62 +44,60 @@ test("writeSuppressions creates a sorted JSON file", async () => {
   expect(result[1]!.file).toBe("src/b.ts");
 });
 
-test("diffSuppressions identifies new and stale (unique errors, scope ignored)", () => {
-  const existing: Suppression[] = [
-    { file: "a.ts", code: 1, hash: "aaa", scope: "oldScope" },
-    { file: "b.ts", code: 2, hash: "bbb", scope: "fnB" },
-  ];
+const s = (file: string, code: number, scope: string): Suppression => ({ file, code, scope });
 
-  const current: Suppression[] = [
-    { file: "a.ts", code: 1, hash: "aaa", scope: "renamedScope" }, // scope changed but unique → still matched
-    { file: "c.ts", code: 3, hash: "ccc", scope: "fnC" }, // new
-  ];
+describe("diffSuppressions (scope identity)", () => {
+  test("identical existing and current is a no-op", () => {
+    const list = [s("a.ts", 2339, "foo"), s("a.ts", 2322, "")];
+    const { unsuppressed, stale } = diffSuppressions(list, list);
+    expect(unsuppressed).toEqual([]);
+    expect(stale).toEqual([]);
+  });
 
-  const diff = diffSuppressions(existing, current);
-  expect(diff.unsuppressed).toEqual([{ file: "c.ts", code: 3, hash: "ccc", scope: "fnC" }]);
-  expect(diff.stale).toEqual([{ file: "b.ts", code: 2, hash: "bbb", scope: "fnB" }]);
-});
+  test("a new error in an unsuppressed scope is reported", () => {
+    const existing = [s("a.ts", 2339, "foo")];
+    const current = [s("a.ts", 2339, "foo"), s("a.ts", 2339, "bar")];
+    const { unsuppressed, stale } = diffSuppressions(existing, current);
+    expect(unsuppressed).toEqual([s("a.ts", 2339, "bar")]);
+    expect(stale).toEqual([]);
+  });
 
-test("diffSuppressions uses scope to disambiguate duplicates", () => {
-  const existing: Suppression[] = [
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnA" },
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnB" },
-  ];
+  test("a fixed error leaves its suppression stale", () => {
+    const existing = [s("a.ts", 2339, "foo")];
+    const current: Suppression[] = [];
+    const { unsuppressed, stale } = diffSuppressions(existing, current);
+    expect(unsuppressed).toEqual([]);
+    expect(stale).toEqual([s("a.ts", 2339, "foo")]);
+  });
 
-  const current: Suppression[] = [
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnA" },
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnB" },
-  ];
+  test("count-based: two of three occurrences fixed leaves one stale entry", () => {
+    const existing = [s("a.ts", 2339, "foo"), s("a.ts", 2339, "foo"), s("a.ts", 2339, "foo")];
+    const current = [s("a.ts", 2339, "foo")];
+    const { unsuppressed, stale } = diffSuppressions(existing, current);
+    expect(unsuppressed).toEqual([]);
+    expect(stale).toEqual([s("a.ts", 2339, "foo"), s("a.ts", 2339, "foo")]);
+  });
 
-  const diff = diffSuppressions(existing, current);
-  expect(diff.unsuppressed).toEqual([]);
-  expect(diff.stale).toEqual([]);
-});
+  test("count-based: a new occurrence beyond the covered count is unsuppressed", () => {
+    const existing = [s("a.ts", 2339, "foo")];
+    const current = [s("a.ts", 2339, "foo"), s("a.ts", 2339, "foo")];
+    const { unsuppressed, stale } = diffSuppressions(existing, current);
+    expect(unsuppressed).toEqual([s("a.ts", 2339, "foo")]);
+    expect(stale).toEqual([]);
+  });
 
-test("diffSuppressions detects stale duplicate when one scope disappears", () => {
-  const existing: Suppression[] = [
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnA" },
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnB" },
-  ];
+  test("renaming the enclosing scope surfaces as stale + unsuppressed", () => {
+    const existing = [s("a.ts", 2339, "oldName")];
+    const current = [s("a.ts", 2339, "newName")];
+    const { unsuppressed, stale } = diffSuppressions(existing, current);
+    expect(unsuppressed).toEqual([s("a.ts", 2339, "newName")]);
+    expect(stale).toEqual([s("a.ts", 2339, "oldName")]);
+  });
 
-  const current: Suppression[] = [{ file: "a.ts", code: 2322, hash: "same", scope: "fnA" }];
-
-  const diff = diffSuppressions(existing, current);
-  expect(diff.unsuppressed).toEqual([]);
-  expect(diff.stale).toEqual([{ file: "a.ts", code: 2322, hash: "same", scope: "fnB" }]);
-});
-
-test("diffSuppressions: previously-unique becomes duplicate, new one is unsuppressed", () => {
-  const existing: Suppression[] = [{ file: "a.ts", code: 2322, hash: "same", scope: "fnA" }];
-
-  const current: Suppression[] = [
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnA" },
-    { file: "a.ts", code: 2322, hash: "same", scope: "fnB" },
-  ];
-
-  const diff = diffSuppressions(existing, current);
-  expect(diff.unsuppressed).toEqual([{ file: "a.ts", code: 2322, hash: "same", scope: "fnB" }]);
-  expect(diff.stale).toEqual([]);
+  test("describeSuppression shows scope, omitting the bracket for module scope", () => {
+    expect(describeSuppression(s("a.ts", 2339, "foo"))).toBe("a.ts TS2339 [foo]");
+    expect(describeSuppression(s("a.ts", 2322, ""))).toBe("a.ts TS2322");
+  });
 });
 
 describe("property tests", () => {
@@ -129,7 +105,6 @@ describe("property tests", () => {
   const arbSuppression: fc.Arbitrary<Suppression> = fc.record({
     file: fc.constantFrom("a.ts", "b.ts", "c.ts"),
     code: fc.constantFrom(2322, 2345, 7006),
-    hash: fc.constantFrom("h1", "h2", "h3"),
     scope: fc.constantFrom("", "fn", "Cls.method", "outer.inner"),
   });
 

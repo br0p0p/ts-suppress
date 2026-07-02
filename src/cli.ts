@@ -71,7 +71,7 @@ cli
   .command("suppress", "Snapshot all current TypeScript errors into .ts-suppressions.json")
   .option(...LOG_LEVEL_FLAG)
   .example("ts-suppress suppress   # Baseline all current errors (overwrites existing file)")
-  .example("ts-suppress suppress --log-level debug   # Trace each error's hash transformation")
+  .example("ts-suppress suppress --log-level debug   # Trace each error's scope and message")
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
     await runAction(async () => {

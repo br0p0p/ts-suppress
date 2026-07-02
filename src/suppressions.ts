@@ -6,38 +6,26 @@ import type { Suppression, SuppressionFile } from "./types.js";
 
 /** Compact one-line description of a suppression for log output. */
 export function describeSuppression(s: Suppression): string {
-  const scope = s.scope ? ` [${s.scope}]` : "";
-  return `${s.file} TS${s.code} ${s.hash.slice(0, 8)}${scope}`;
+  return `${s.file} TS${s.code}${s.scope ? ` [${s.scope}]` : ""}`;
 }
 
 export const SUPPRESSIONS_FILENAME = ".ts-suppressions.json";
 
 /** Compare function for deterministic sorting of suppressions */
 function compareSuppression(a: Suppression, b: Suppression): number {
-  return (
-    a.file.localeCompare(b.file) ||
-    a.code - b.code ||
-    a.hash.localeCompare(b.hash) ||
-    a.scope.localeCompare(b.scope)
-  );
+  return a.file.localeCompare(b.file) || a.code - b.code || a.scope.localeCompare(b.scope);
 }
 
-/** Key without scope — used for grouping duplicates */
-function baseKey(s: Suppression): string {
-  return `${s.file}\0${s.code}\0${s.hash}`;
+/** Identity key: file + code + scope. Occurrences are counted, not deduped. */
+function key(s: Suppression): string {
+  return `${s.file}\0${s.code}\0${s.scope}`;
 }
 
-/** Key with scope — used for matching duplicates */
-function fullKey(s: Suppression): string {
-  return `${s.file}\0${s.code}\0${s.hash}\0${s.scope}`;
-}
-
-/** Count occurrences of each base key in a list */
-function countByBaseKey(list: Suppression[]): Map<string, number> {
+function countByKey(list: Suppression[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const s of list) {
-    const key = baseKey(s);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const k = key(s);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
   }
   return counts;
 }
@@ -82,40 +70,24 @@ export interface SuppressionDiff {
 /**
  * Diff existing suppressions against current diagnostics.
  *
- * Matching strategy:
- * - For unique { file, code, hash } tuples: match by base key only (scope is informational)
- * - For duplicate { file, code, hash } tuples: match by full key including scope
- *
- * "Became duplicate" edge case: if existing has 1 entry for a base key but current has 2+,
- * the existing suppression covers one occurrence; extras are reported as unsuppressed.
+ * Identity is file + code + scope, matched by occurrence count:
+ * - unsuppressed = current occurrences of a key beyond the existing count
+ * - stale        = existing occurrences of a key beyond the current count
  */
 export function diffSuppressions(existing: Suppression[], current: Suppression[]): SuppressionDiff {
   logger.debug(`diff: existing=${existing.length} current=${current.length}`);
   const traceEnabled = logger.level >= LogLevels.trace;
-  const existingCounts = countByBaseKey(existing);
-  const currentCounts = countByBaseKey(current);
+  const existingCounts = countByKey(existing);
+  const currentCounts = countByKey(current);
 
-  // A base key is "duplicate" if EITHER list has more than one entry for it
-  const isDuplicate = (key: string) =>
-    (existingCounts.get(key) ?? 0) > 1 || (currentCounts.get(key) ?? 0) > 1;
-
-  // Build a pool of existing match counts keyed appropriately
-  const existingKeys = new Map<string, number>();
-  for (const s of existing) {
-    const key = isDuplicate(baseKey(s)) ? fullKey(s) : baseKey(s);
-    existingKeys.set(key, (existingKeys.get(key) ?? 0) + 1);
-  }
-
-  // Match current diagnostics against existing suppressions
   const unsuppressed: Suppression[] = [];
-  const matchedKeys = new Map<string, number>();
-
+  const consumedForUnsup = new Map<string, number>();
   for (const s of current) {
-    const key = isDuplicate(baseKey(s)) ? fullKey(s) : baseKey(s);
-    const remaining = (existingKeys.get(key) ?? 0) - (matchedKeys.get(key) ?? 0);
-
-    if (remaining > 0) {
-      matchedKeys.set(key, (matchedKeys.get(key) ?? 0) + 1);
+    const k = key(s);
+    const covered = existingCounts.get(k) ?? 0;
+    const used = consumedForUnsup.get(k) ?? 0;
+    if (used < covered) {
+      consumedForUnsup.set(k, used + 1);
       if (traceEnabled) logger.trace(`diff matched: ${describeSuppression(s)}`);
     } else {
       unsuppressed.push(s);
@@ -123,21 +95,14 @@ export function diffSuppressions(existing: Suppression[], current: Suppression[]
     }
   }
 
-  // Find stale: existing entries not consumed by any current diagnostic
-  const currentKeySet = new Map<string, number>();
-  for (const s of current) {
-    const key = isDuplicate(baseKey(s)) ? fullKey(s) : baseKey(s);
-    currentKeySet.set(key, (currentKeySet.get(key) ?? 0) + 1);
-  }
-
-  const staleConsumed = new Map<string, number>();
   const stale: Suppression[] = [];
+  const consumedForStale = new Map<string, number>();
   for (const s of existing) {
-    const key = isDuplicate(baseKey(s)) ? fullKey(s) : baseKey(s);
-    const available = (currentKeySet.get(key) ?? 0) - (staleConsumed.get(key) ?? 0);
-
-    if (available > 0) {
-      staleConsumed.set(key, (staleConsumed.get(key) ?? 0) + 1);
+    const k = key(s);
+    const needed = currentCounts.get(k) ?? 0;
+    const used = consumedForStale.get(k) ?? 0;
+    if (used < needed) {
+      consumedForStale.set(k, used + 1);
       if (traceEnabled) logger.trace(`diff covered: ${describeSuppression(s)}`);
     } else {
       stale.push(s);
