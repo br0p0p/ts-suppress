@@ -1,7 +1,6 @@
 import ts from "typescript";
 import { LogLevels } from "consola";
 import { relative } from "node:path";
-import { hashMessage } from "./hash.js";
 import { logger, styleStderr } from "./logger.js";
 import { buildScopePath } from "./scope.js";
 import { findNodeAtPosition } from "./ast.js";
@@ -14,159 +13,30 @@ export interface DiagnosticRecord {
   diagnostic: ts.Diagnostic;
 }
 
-// TS diagnostic messages embed stringified types (e.g. "Type '{ a: number; }' is
-// not assignable to type 'Foo'") that are rendered from whole-file context: alias
-// preferences, inferred return types, and truncation budgets all shift with edits
-// elsewhere in the file. Elide any single-quoted span that contains structural
-// characters so the hash depends on the error template and short type names only.
-//
-// Triggers: `{` and `}` enclose object/intersection types — always structural.
-// `...` appears in two places: TS's truncation marker (`'... 402 more ...'`,
-// suppressed by noErrorTruncation but kept as defence-in-depth) and rest/
-// variadic type rendering (`'...string[]'`, `'[number, ...T[]]'`). The latter
-// are short but always structural by nature, so eliding them is fine.
-const STRUCTURAL_QUOTED = /'[^'\n]*(?:[{}]|\.\.\.)[^'\n]*'/g;
-
-// TS embeds absolute filesystem paths in many message templates: `import("…")`
-// specifiers for untyped modules, missing-declaration notes (TS7016), "not a
-// module" / "cannot find module" errors (TS2306/TS2307), and more. Any absolute
-// path makes the hash depend on where the repo is checked out, so a baseline
-// built locally fails in CI. We rewrite each absolute-path token to a portable
-// form (separators normalized to `/`):
-//
-//  - Under `node_modules` -> the bare specifier (everything after the last
-//    `/node_modules/`). A dependency's on-disk location varies with hoisting
-//    and the package manager, so the module name is the only stable signal.
-//  - Otherwise, under the checkout root -> a repo-relative path, so the same
-//    file hashes the same on every machine.
-//  - Otherwise (outside both) -> left as-is; we have nothing portable to use.
-//
-// Matches POSIX (`/…`) and Windows (`C:\…`) runs, whether bare, single-quoted,
-// or inside `import("…")`. A token that matches none of the cases is returned
-// unchanged, so non-path text that happens to contain a slash is never touched.
-const ABS_PATH = /(?:[A-Za-z]:)?[/\\][^\s'"()]*/g;
-const NODE_MODULES = "/node_modules/";
-
-// TS2739/TS2740 ("Type 'X' is missing the following properties from type 'Y':
-// a, b, c") list the missing property names in the target type's declaration
-// order. That order tracks TypeScript's global symbol-discovery order, so adding
-// an unrelated file elsewhere in the program can reshuffle the list without the
-// error itself changing — a spurious suppression regeneration. Sort the names so
-// the hash depends on the set of missing properties, not their incidental order.
-//
-// TS2740's "…, and N more." truncated form is worse: which names TS shows in the
-// visible prefix also shifts with discovery order, so sorting the shown subset
-// can't stabilize it (the members themselves differ between runs). For truncated
-// lists we drop the names entirely and hash on the total missing count (visible +
-// N more), which is a property of the type mismatch, not of discovery order.
-const MISSING_PROPS = /( is missing the following properties from type '[^']*': )([^\n]+)/g;
-
-function sortMissingProperties(list: string): string {
-  const more = list.match(/, and (\d+) more\.$/);
-  if (more) {
-    const shown = list.slice(0, more.index).split(", ").length;
-    return `${shown + Number(more[1])} missing`;
-  }
-  return list.split(", ").sort().join(", ");
-}
-
-// TypeScript renders union types ("A | B | C") in the same discovery-order that
-// destabilizes property lists, so a union inside a rendered type name (e.g.
-// TS2339 "Property 'x' does not exist on type 'Event | HTMLCanvasElement'") churns
-// the hash the same way. Sort the members of every non-elided quoted type span.
-//
-// Function and conditional types ("(a) => X | Y", "T extends U ? X : Y") are
-// skipped: their top-level "|" does not delimit a plain union, so reordering
-// around it would be meaningless. Members are split depth-aware so unions nested
-// inside generics/tuples/objects (Pick<…, "a" | "b">, [x, "a" | "b"]) are left to
-// their enclosing span — top-level sorting already clears the churn we observe.
-const QUOTED_SPAN = /'[^'\n]*'/g;
-
-function splitTopLevelUnion(body: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let inString = false;
-  let current = "";
-  for (let i = 0; i < body.length; i++) {
-    const ch = body[i]!;
-    if (ch === '"') inString = !inString;
-    if (!inString) {
-      if ("<([{".includes(ch)) depth++;
-      else if (">)]}".includes(ch)) depth--;
-      else if (depth === 0 && ch === "|" && body[i - 1] === " " && body[i + 1] === " ") {
-        parts.push(current.trim());
-        current = "";
-        i++;
-        continue;
-      }
-    }
-    current += ch;
-  }
-  parts.push(current.trim());
-  return parts;
-}
-
-function sortUnionMembers(span: string): string {
-  const body = span.slice(1, -1);
-  if (!body.includes(" | ")) return span;
-  if (body.includes("=>") || body.includes(" extends ")) return span;
-  const members = splitTopLevelUnion(body);
-  if (members.length < 2) return span;
-  return `'${members.sort().join(" | ")}'`;
-}
-
-export function normalizeMessageForHash(message: string, projectRoot = ""): string {
-  const rootPrefix = projectRoot ? projectRoot.replaceAll("\\", "/").replace(/\/?$/, "/") : "";
-  return message
-    .replace(ABS_PATH, (path) => {
-      const norm = path.replaceAll("\\", "/");
-      const nm = norm.lastIndexOf(NODE_MODULES);
-      if (nm !== -1) return norm.slice(nm + NODE_MODULES.length);
-      if (rootPrefix && norm.startsWith(rootPrefix)) return norm.slice(rootPrefix.length);
-      return path;
-    })
-    .replace(STRUCTURAL_QUOTED, "'<elided>'")
-    .replace(
-      MISSING_PROPS,
-      (_m, prefix: string, list: string) => prefix + sortMissingProperties(list),
-    )
-    .replace(QUOTED_SPAN, sortUnionMembers);
-}
-
 /**
- * Render a debug-level transformation trace as a header line plus aligned
- * `key  value` rows. Multi-line values are continuation-indented to the value
- * column so chained TS sub-messages stay readable.
+ * Render a debug-level line: a location header plus the raw diagnostic message.
+ * Multi-line messages are continuation-indented to the value column.
  */
 export function formatDebugRecord(
   filePath: string,
   code: number,
   scope: string,
-  hash: string,
   raw: string,
-  normalized: string,
 ): string {
-  const LABEL_WIDTH = 10; // longest label = "normalized"
+  const LABEL_WIDTH = 7; // "message"
   const continuation = " ".repeat(2 + LABEL_WIDTH + 2);
-  const field = (label: string, value: string): string => {
-    const lines = value.split("\n");
-    const labelText = styleStderr("dim", label.padEnd(LABEL_WIDTH));
-    return [`  ${labelText}  ${lines[0]}`, ...lines.slice(1).map((l) => continuation + l)].join(
-      "\n",
-    );
-  };
+  const lines = raw.split("\n");
+  const label = styleStderr("dim", "message".padEnd(LABEL_WIDTH));
+  const body = [`  ${label}  ${lines[0]}`, ...lines.slice(1).map((l) => continuation + l)].join(
+    "\n",
+  );
 
   const location = scope
     ? `${styleStderr("cyan", filePath)}${styleStderr("dim", ":")}${styleStderr("magenta", scope)}`
     : styleStderr("cyan", filePath);
   const header = `${location} ${styleStderr("yellow", `TS${code}`)}`;
 
-  return [
-    header,
-    field("hash", hash.slice(0, 12)),
-    field("raw", raw),
-    field("normalized", normalized),
-  ].join("\n");
+  return [header, body].join("\n");
 }
 
 /**
@@ -187,9 +57,6 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
 
     const filePath = relative(projectRoot, sourceFile.fileName);
     const code = diag.code;
-    const rawMessage = ts.flattenDiagnosticMessageText(diag.messageText, "\n");
-    const message = normalizeMessageForHash(rawMessage, projectRoot);
-    const hash = hashMessage(message);
 
     const start = diag.start;
     let scope = "";
@@ -201,11 +68,12 @@ export function collectDiagnostics(project: TsProject, projectRoot: string): Dia
     }
 
     if (logger.level >= LogLevels.debug) {
-      logger.debug(formatDebugRecord(filePath, code, scope, hash, rawMessage, message));
+      const rawMessage = ts.flattenDiagnosticMessageText(diag.messageText, "\n");
+      logger.debug(formatDebugRecord(filePath, code, scope, rawMessage));
     }
 
     records.push({
-      suppression: { file: filePath, code, hash, scope },
+      suppression: { file: filePath, code, scope },
       diagnostic: diag,
     });
   }

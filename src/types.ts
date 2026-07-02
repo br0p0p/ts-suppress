@@ -4,8 +4,6 @@ export interface Suppression {
   file: string;
   /** TypeScript error code (e.g. 2322) */
   code: number;
-  /** Hex hash of the diagnostic message text */
-  hash: string;
   /** Dot-separated scope chain (e.g. "MyClass.myMethod"), empty string for module-level */
   scope: string;
 }

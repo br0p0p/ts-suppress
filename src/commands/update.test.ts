@@ -36,7 +36,7 @@ test("update adds suppressions when none exist", async () => {
 });
 
 test("update removes stale suppressions", async () => {
-  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, hash: "fakehash", scope: "" }]);
+  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, scope: "" }]);
   const result = await runUpdate(cleanProject(), "/", tempDir);
   expect(result.removed.length).toBe(1);
   expect(result.added).toEqual([]);
@@ -45,7 +45,7 @@ test("update removes stale suppressions", async () => {
 });
 
 test("update adds and removes in one pass", async () => {
-  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, hash: "stale", scope: "" }]);
+  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, scope: "" }]);
   const result = await runUpdate(errorProject(), "/", tempDir);
   expect(result.added.length).toBeGreaterThan(0);
   expect(result.removed.length).toBe(1);
@@ -78,7 +78,7 @@ test("update is deterministic (idempotent file output)", async () => {
 });
 
 test("update total matches saved suppression count after add+remove", async () => {
-  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, hash: "stale", scope: "" }]);
+  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, scope: "" }]);
   const result = await runUpdate(errorProject(), "/", tempDir);
   const saved = await readSuppressions(tempDir);
   expect(saved.length).toBe(result.total);

@@ -40,9 +40,7 @@ test("check returns failure when there are unsuppressed errors", async () => {
 });
 
 test("check returns failure when there are stale suppressions", async () => {
-  await writeSuppressions(tempDir, [
-    { file: "nonexistent.ts", code: 9999, hash: "fakehash", scope: "" },
-  ]);
+  await writeSuppressions(tempDir, [{ file: "nonexistent.ts", code: 9999, scope: "" }]);
   const project = createInMemoryProject({
     "clean.ts": "export const x: number = 42;",
   });
@@ -52,7 +50,7 @@ test("check returns failure when there are stale suppressions", async () => {
 });
 
 test("check returns failure when both unsuppressed and stale exist", async () => {
-  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, hash: "stale", scope: "" }]);
+  await writeSuppressions(tempDir, [{ file: "gone.ts", code: 9999, scope: "" }]);
   const result = await runCheck(errorProject(), "/", tempDir);
   expect(result.exitCode).toBe(1);
   expect(result.unsuppressed.length).toBeGreaterThan(0);
@@ -70,9 +68,9 @@ test("check with no suppression file treats all errors as unsuppressed", async (
 // whose message embeds a large inferred structural type (mirroring the
 // real-world case where <TailwindProvider utilities={utilities}> caused TS to
 // dump the tailwind.json shape into the error). An edit elsewhere in the file
-// changes that rendered type in the error message. Before the fix, the hash
-// follows the message and the suppression goes stale even though the
-// suppressed code was never touched.
+// changes that rendered type in the error message, but suppression identity
+// is file+code+scope, not the message, so the suppression must stay valid
+// even though the message text shifted.
 //
 // Each fixture here has been verified to produce a raw message that actually
 // differs between `before` and `after` — they are real regressions, not no-ops.
@@ -125,7 +123,7 @@ const unrelatedEditCases: ReadonlyArray<{ label: string; before: string; after: 
     label: "change a string-literal value propagated via 'as const'",
     // This is the original App.tsx shape: a string literal that flows into a
     // type the error message renders. Changing the literal rewrites the raw
-    // message; the structural span is still elided so the hash holds.
+    // message, but suppression identity does not depend on the message.
     before: `
       const config = { tag: "A" as const, count: 1 };
       export const bad: number = { ...config };

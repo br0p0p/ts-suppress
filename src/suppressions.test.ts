@@ -33,8 +33,8 @@ test("readSuppressions returns empty array when file does not exist", async () =
 
 test("writeSuppressions creates a sorted JSON file", async () => {
   const suppressions: Suppression[] = [
-    { file: "src/b.ts", code: 2322, hash: "bbb", scope: "fnB" },
-    { file: "src/a.ts", code: 2322, hash: "aaa", scope: "fnA" },
+    { file: "src/b.ts", code: 2322, scope: "fnB" },
+    { file: "src/a.ts", code: 2322, scope: "fnA" },
   ];
 
   await writeSuppressions(tempDir, suppressions);
@@ -44,12 +44,7 @@ test("writeSuppressions creates a sorted JSON file", async () => {
   expect(result[1]!.file).toBe("src/b.ts");
 });
 
-const s = (file: string, code: number, scope: string): Suppression => ({
-  file,
-  code,
-  scope,
-  hash: "",
-});
+const s = (file: string, code: number, scope: string): Suppression => ({ file, code, scope });
 
 describe("diffSuppressions (scope identity)", () => {
   test("identical existing and current is a no-op", () => {
@@ -107,13 +102,9 @@ describe("diffSuppressions (scope identity)", () => {
 
 describe("property tests", () => {
   // Small alphabets force collisions so duplicate-handling paths are exercised.
-  // hash is constant: it's no longer part of identity or sort order, so varying
-  // it would make same-key entries genuinely distinct and break the
-  // permutation-invariance property below for reasons unrelated to what it tests.
   const arbSuppression: fc.Arbitrary<Suppression> = fc.record({
     file: fc.constantFrom("a.ts", "b.ts", "c.ts"),
     code: fc.constantFrom(2322, 2345, 7006),
-    hash: fc.constant(""),
     scope: fc.constantFrom("", "fn", "Cls.method", "outer.inner"),
   });
 
