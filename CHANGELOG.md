@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v1.0.2...ts-suppress-v2.0.0) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* AST-scope suppression identity (drop message hash) — 2.0.0 ([#43](https://github.com/br0p0p/ts-suppress/issues/43))
+
+### Features
+
+* AST-scope suppression identity (drop message hash) — 2.0.0 ([#43](https://github.com/br0p0p/ts-suppress/issues/43)) ([ac8e11c](https://github.com/br0p0p/ts-suppress/commit/ac8e11c6e82e58a17a6fba47d52b1ba847a2611e))
+
+
+### Bug Fixes
+
+* stabilize TS message hashes against discovery-order churn (property lists, unions, truncated lists) ([#40](https://github.com/br0p0p/ts-suppress/issues/40)) ([a778594](https://github.com/br0p0p/ts-suppress/commit/a7785944e3008d720ca59d05e903ccbfb49f8cec))
+
 ## [1.0.2](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v1.0.1...ts-suppress-v1.0.2) (2026-06-18)
 
 
