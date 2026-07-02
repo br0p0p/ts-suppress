@@ -64,7 +64,7 @@ export async function runCheck(
     logger.error(`\n${stale.length} stale suppression(s):\n`);
     for (const s of stale) {
       // describeSuppression is the single source for a suppression's identity,
-      // so check output matches `update --log-level` and keeps hash/scope.
+      // so check output matches `update --log-level` and shows file+code+scope.
       logger.error(`  ${describeSuppression(s)}`);
     }
   }

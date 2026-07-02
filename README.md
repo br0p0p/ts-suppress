@@ -40,7 +40,7 @@ npx ts-suppress check
 npx ts-suppress update
 ```
 
-Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to trace each diagnostic's raw message, normalized form, and hash — handy when investigating why two suppressions collide or shift across edits.
+Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to trace each diagnostic's scope and raw message — handy when investigating why a suppression didn't match the error you expected.
 
 ## Typical Workflow
 
@@ -53,12 +53,21 @@ Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `
 
 ## How It Works
 
-Each suppression is a fingerprint of a TypeScript error, consisting of:
+A suppression's identity is `file + code + scope`:
 
 - **file** — relative path to the source file
 - **code** — TypeScript error code (e.g. `2322`)
-- **hash** — SHA-256 of the diagnostic message, with rendered types elided so unrelated edits don't shift it.
-- **scope** — dot-separated scope chain (e.g. `MyClass.myMethod`)
+- **scope** — the dot-path of the enclosing named AST node (e.g. `MyClass.myMethod`), empty string for module-level code
+
+Example `.ts-suppressions.json` entry:
+
+```json
+{ "file": "src/api.ts", "code": 2322, "scope": "MyClass.myMethod" }
+```
+
+Two errors with the same `file + code + scope` are treated as the same suppression. If a scope has more than one error of the same code, each occurrence gets its own entry, and duplicates are matched by count rather than deduplicated — fix one and `check` reports the rest as still-unsuppressed.
+
+**Tradeoff:** because identity is anchored to the enclosing named node rather than the error message, suppressions are sticky — they survive refactors that don't move or rename that node, even if the error's wording changes. The flip side is that the tool can't tell when an error morphs into a different error of the same code inside the same scope: if you fix the original problem but introduce a new TS2322 in the same method, it stays silently suppressed. Module-level errors (outside any named function, class, or block) all share the empty `""` scope, so distinct module-level errors of the same code are indistinguishable from each other.
 
 The `check` command diffs the current diagnostics against the suppression file and reports:
 
@@ -74,7 +83,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 |                          | ts-suppress                                                | ts-bulk-suppress                                                      |
 | ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------- |
 | **Suppression file**     | Single `.ts-suppressions.json`                             | `.ts-bulk-suppressions.json`                                          |
-| **Error identification** | file + error code + normalized message hash + scope        | file + error code + scope                                             |
+| **Error identification** | file + error code + scope                                  | file + error code + scope                                             |
 | **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API | Wraps/intercepts tsc output                                           |
 | **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`   | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
 | **Runtime dependencies** | 2 (cac, consola) + TypeScript as peer dep                  | 37 packages                                                           |
@@ -82,7 +91,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 
 ### Key differences
 
-- **Hash-based fingerprinting** — Each suppression hashes the diagnostic message (with rendered types elided). Different error templates hash differently; unrelated edits don't shift the hash.
+- **AST-anchored scope** — Each suppression's scope is the dot-path of the enclosing named AST node, computed by walking the tree rather than parsing tsc's text output. See [How It Works](#how-it-works) for the tradeoffs this brings.
 - **No tsc patching** — ts-suppress uses the TypeScript compiler API directly to collect diagnostics rather than wrapping or intercepting tsc. This avoids coupling to tsc's output format.
 - **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`) is a separate command rather than a flag, making the workflow easier to script and understand.
 

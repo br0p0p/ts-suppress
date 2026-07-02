@@ -46,8 +46,8 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
   }
 
   // noErrorTruncation keeps diagnostic messages stable: TS's default truncation
-  // budget can shift based on file-wide type rendering, which changes the hash
-  // for completely unrelated edits.
+  // budget can shift based on file-wide type rendering, which would otherwise
+  // make the same error look different across unrelated edits.
   const program = ts.createProgram(parsed.fileNames, {
     ...parsed.options,
     noErrorTruncation: true,
