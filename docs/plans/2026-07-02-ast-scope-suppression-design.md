@@ -1,7 +1,7 @@
 # Design: AST-scope suppression identity (drop the message hash)
 
 **Date:** 2026-07-02
-**Status:** Draft — awaiting author review
+**Status:** Approved — ready for implementation plan
 **Type:** Breaking change (target version 2.0.0)
 
 ## Summary
@@ -70,7 +70,7 @@ The `hash` field is removed.
 }
 ```
 
-**Decision (author to confirm): duplicates are repeated entries**, not a `count`
+**Decision (confirmed): duplicates are repeated entries**, not a `count`
 field. N occurrences of one `file+code+scope` are N identical lines. This keeps
 the existing count-based diff mechanics untouched and matches the current file
 style. (Alternative considered: a `count` field — smaller file, but rewrites the
@@ -93,7 +93,7 @@ a single key with occurrence counting:
 
 ### Scope granularity
 
-**Decision (author to confirm): keep `src/scope.ts` unchanged.** Coarse scope is
+**Decision (confirmed): keep `src/scope.ts` unchanged.** Coarse scope is
 maximally sticky, which is the goal. Known limitation: module-level errors all
 share `scope: ""`, so a file's module-level errors of one code collapse into a
 single counted bucket with no positional anchoring. Documented, not fixed.
@@ -159,10 +159,13 @@ hash). It will trace **scope derivation** (node kind/name → scope path). The
 - `--log-level debug` documents/traces scope derivation.
 - Version bumped to 2.0.0; breaking change noted for release.
 
-## Open questions for author review
+## Resolved decisions (author review, 2026-07-02)
 
-1. Confirm **repeated entries** over a `count` field.
-2. Confirm **coarse scope unchanged** (accept module-scope bucketing) for 2.0.0.
-3. Should the live error message appear anywhere in `check`/`suppress` output for
-   human context, now that it is no longer stored? (Lean: yes in `check` output,
-   no in the file.)
+1. **Repeated entries** over a `count` field — confirmed.
+2. **Coarse scope unchanged** (accept module-scope bucketing) for 2.0.0 —
+   confirmed.
+3. **Live error message in output, not the file** — confirmed. `check` prints the
+   live diagnostic message for each still-unsuppressed error so a human can see
+   what it is; the stored `.ts-suppressions.json` never contains the message.
+   `suppress`/`update` keep their existing summary output. The message is
+   available from the live `ts.Diagnostic` and is never hashed or persisted.
