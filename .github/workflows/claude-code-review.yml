@@ -12,11 +12,10 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Only run for PRs from branches in this repo, never from forks. Fork PRs
+    # would otherwise install our dependencies and run our tooling. See the
+    # repo's Actions setting for fork-PR approval as a second layer.
+    if: github.event.pull_request.head.repo.full_name == github.repository
 
     runs-on: ubuntu-latest
     permissions:
@@ -31,58 +30,26 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Install the toolchain so Claude can run typecheck / ts-suppress directly.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+          prompt: "/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
           track_progress: true
           use_sticky_comment: true
-          plugins: "code-review@claude-code-plugins"
-          # prompt: "/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          # Let the reviewer verify type errors and run the tool while reviewing.
+          claude_args: |
+            --allowedTools "Bash(pnpm run typecheck:*),Bash(pnpm typecheck:*),Bash(pnpm dev:*),Bash(pnpm run dev:*)"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Please review this pull request with a focus on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Security implications
-            - Performance considerations
-
-            Note: The PR branch is already checked out in the current working directory.
-
-            Use `gh pr comment` for top-level feedback.
-            Use `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) to highlight specific code issues.
-            Only post GitHub comments - don't submit review text as messages.
-
-            Resolving addressed feedback:
-            - On re-reviews (e.g. after a `synchronize` event), list the PR's existing
-              unresolved review threads with the GitHub GraphQL API:
-                gh api graphql -F owner='${{ github.repository_owner }}' \
-                  -F repo='${{ github.event.repository.name }}' \
-                  -F number=${{ github.event.pull_request.number }} \
-                  -f query='query($owner:String!,$repo:String!,$number:Int!){
-                    repository(owner:$owner,name:$repo){
-                      pullRequest(number:$number){
-                        reviewThreads(first:100){
-                          nodes{ id isResolved comments(first:10){ nodes{ body path line } } }
-                        }
-                      }
-                    }
-                  }'
-            - For each unresolved thread whose concern is clearly addressed by the latest
-              changes (verify against the current code on disk), resolve it with:
-                gh api graphql -F threadId='<thread-id>' \
-                  -f query='mutation($threadId:ID!){
-                    resolveReviewThread(input:{threadId:$threadId}){ thread{ id isResolved } }
-                  }'
-            - Only resolve threads you are confident have been fixed. If a concern is
-              partially addressed or unclear, leave the thread open and post a follow-up
-              inline comment instead.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api graphql:*)"

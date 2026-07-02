@@ -30,6 +30,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Install the toolchain so Claude can run typecheck / ts-suppress directly.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -44,7 +52,8 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Optional: Add claude_args to customize behavior and configuration
+          # Let Claude run typecheck / ts-suppress when answering or fixing.
+          claude_args: |
+            --allowedTools "Bash(pnpm run typecheck:*),Bash(pnpm typecheck:*),Bash(pnpm dev:*),Bash(pnpm run dev:*)"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
