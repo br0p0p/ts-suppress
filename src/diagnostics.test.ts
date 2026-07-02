@@ -200,6 +200,21 @@ describe("normalizeMessageForHash (unit)", () => {
     const twice = normalizeMessageForHash(once);
     expect(twice).toBe(once);
   });
+
+  test.each([
+    [
+      "missing-property sort",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': c, a, b",
+    ],
+    [
+      "truncated count collapse",
+      "Type '{}' is missing the following properties from type '{ a: 1; }': d, b, a, and 3 more.",
+    ],
+    ["union member sort", "Property 'x' does not exist on type 'C | A | B'."],
+  ])("the %s path is idempotent on its own output", (_label, input) => {
+    const once = normalizeMessageForHash(input);
+    expect(normalizeMessageForHash(once)).toBe(once);
+  });
 });
 
 describe("normalizeMessageForHash (property)", () => {
