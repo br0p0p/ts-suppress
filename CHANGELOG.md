@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v2.0.0...ts-suppress-v2.1.0) (2026-08-21)
+
+
+### Features
+
+* add prune command to remove stale suppressions only ([#48](https://github.com/br0p0p/ts-suppress/issues/48)) ([0c66923](https://github.com/br0p0p/ts-suppress/commit/0c669234e7e960a737588da323d64319402a31d0))
+
+
+### Documentation
+
+* move CLAUDE.md to AGENTS.md and symlink CLAUDE.md ([#46](https://github.com/br0p0p/ts-suppress/issues/46)) ([d26d88d](https://github.com/br0p0p/ts-suppress/commit/d26d88d252e2bfefaaa80edc0e4650997324ac92))
+
 ## [2.0.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v1.0.2...ts-suppress-v2.0.0) (2026-07-02)
 
 
