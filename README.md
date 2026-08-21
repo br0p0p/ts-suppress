@@ -38,6 +38,9 @@ npx ts-suppress check
 
 # Add new suppressions and remove stale ones in a single pass
 npx ts-suppress update
+
+# Remove stale suppressions only, leaving new errors unsuppressed
+npx ts-suppress prune
 ```
 
 Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to trace each diagnostic's scope and raw message — handy when investigating why a suppression didn't match the error you expected.
@@ -50,6 +53,8 @@ Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `
 4. Add `npx ts-suppress check` to CI
 5. Fix errors over time — `check` will flag stale suppressions as you go
 6. Run `npx ts-suppress update` to sync the suppression file after fixing errors
+
+Use `prune` instead of `update` when you want the suppression file to shrink but never grow. It clears out entries for errors you fixed and leaves any new errors unsuppressed, so `check` keeps failing on them.
 
 ## How It Works
 
@@ -80,20 +85,20 @@ The `check` command diffs the current diagnostics against the suppression file a
 
 ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok and shares the same core idea: capture TypeScript errors into an external file instead of scattering `@ts-ignore` comments. The two tools take different approaches to the problem.
 
-|                          | ts-suppress                                                | ts-bulk-suppress                                                      |
-| ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Suppression file**     | Single `.ts-suppressions.json`                             | `.ts-bulk-suppressions.json`                                          |
-| **Error identification** | file + error code + scope                                  | file + error code + scope                                             |
-| **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API | Wraps/intercepts tsc output                                           |
-| **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`   | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
-| **Runtime dependencies** | 2 (cac, consola) + TypeScript as peer dep                  | 37 packages                                                           |
-| **Maintenance**          | Actively maintained                                        | [Last published 2024](https://www.npmjs.com/package/ts-bulk-suppress) |
+|                          | ts-suppress                                                       | ts-bulk-suppress                                                      |
+| ------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Suppression file**     | Single `.ts-suppressions.json`                                    | `.ts-bulk-suppressions.json`                                          |
+| **Error identification** | file + error code + scope                                         | file + error code + scope                                             |
+| **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API        | Wraps/intercepts tsc output                                           |
+| **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`, `prune` | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
+| **Runtime dependencies** | 2 (cac, consola) + TypeScript as peer dep                         | 37 packages                                                           |
+| **Maintenance**          | Actively maintained                                               | [Last published 2024](https://www.npmjs.com/package/ts-bulk-suppress) |
 
 ### Key differences
 
 - **AST-anchored scope** — Each suppression's scope is the dot-path of the enclosing named AST node, computed by walking the tree rather than parsing tsc's text output. See [How It Works](#how-it-works) for the tradeoffs this brings.
 - **No tsc patching** — ts-suppress uses the TypeScript compiler API directly to collect diagnostics rather than wrapping or intercepting tsc. This avoids coupling to tsc's output format.
-- **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`) is a separate command rather than a flag, making the workflow easier to script and understand.
+- **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`, `prune`) is a separate command rather than a flag, making the workflow easier to script and understand.
 
 ## Acknowledgements
 
