@@ -7,6 +7,8 @@ const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
 const nestedFixture = resolve(import.meta.dirname!, "../fixtures/nested/packages/app");
 const solutionFixture = resolve(import.meta.dirname!, "../fixtures/solution");
 const badConfigFixture = resolve(import.meta.dirname!, "../fixtures/bad-config");
+const solutionGlobFixture = resolve(import.meta.dirname!, "../fixtures/solution-glob");
+const leafWithRefsFixture = resolve(import.meta.dirname!, "../fixtures/leaf-with-refs");
 
 test("findTsConfig finds tsconfig.json in the given directory", () => {
   const result = findTsConfig(basicFixture);
@@ -39,6 +41,25 @@ test("createProject throws on a solution-style tsconfig instead of silently pass
   // A root with only "references" parses to zero input files; without a guard
   // this would yield an empty Program and report a clean (but meaningless) check.
   expect(() => createProject(solutionFixture)).toThrow(/solution-style/);
+});
+
+test("createProject throws on a solution root that omits files and include", () => {
+  // This shape parses to a non-empty file list — the default **/* glob sweeps the
+  // referenced package's sources — so a fileNames-only guard would let it pass and
+  // check those files under the root's (non-strict) options.
+  expect(() => createProject(solutionGlobFixture)).toThrow(/solution-style/);
+});
+
+test("createProject accepts a leaf project that both declares inputs and has references", () => {
+  const { project } = createProject(leafWithRefsFixture);
+  expect(project.program.getRootFileNames()).toHaveLength(1);
+});
+
+test("createProject surfaces the error a solution root would have hidden", () => {
+  // The leaf the thrown message points users at must actually report the error.
+  const { project } = createProject(resolve(solutionFixture, "pkg"));
+  const diagnostics = ts.getPreEmitDiagnostics(project.program);
+  expect(diagnostics.length).toBeGreaterThan(0);
 });
 
 test("createProject reports every config error, not just the first", () => {

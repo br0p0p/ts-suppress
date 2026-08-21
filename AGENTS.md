@@ -65,6 +65,15 @@ Tests are colocated with source files (`*.test.ts`). Use `vitest` imports (`test
 
 Run focused tests with `pnpm test <file-pattern>` (filters test files) or `pnpm test -t <test-name>` (filters by test name). Plain `pnpm test` runs the whole suite once.
 
+### Fixtures
+
+`fixtures/` holds small tsconfig projects the tests point `createProject` at. Some are invalid on purpose:
+
+- `bad-config/` — two invalid compiler options. Listed in `.oxlintrc.json` `ignorePatterns` because oxlint reports its deliberately broken tsconfig; keep it there.
+- `solution/` — solution-style root using `"files": []` plus `references`.
+- `solution-glob/` — solution-style root that omits `files`/`include`, so the default `**/*` glob sweeps the referenced package. Its file list is non-empty, which is why the guard can't key on `fileNames` alone.
+- `leaf-with-refs/` — a legitimate leaf project that declares inputs _and_ has `references`. Regression guard: this one must keep working.
+
 ## Gotchas
 
 - Build uses a separate `tsconfig.build.json` — the root `tsconfig.json` is for development type-checking only

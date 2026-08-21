@@ -42,18 +42,25 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
     );
   }
 
-  // A solution-style root tsconfig (only "references", no "files"/"include")
-  // parses cleanly to zero input files, so ts.createProgram would build an empty
-  // Program and `check` would pass while inspecting nothing. Every other
-  // zero-file config shape already trips a parse error above, so the second
-  // throw here is only a backstop if that ever stops being true.
+  // A solution-style root delegates all its work to "references" and declares no
+  // inputs of its own. Both of its shapes check nothing useful: `"files": []`
+  // yields an empty Program, and omitting "files"/"include" entirely lets the
+  // default **/* glob sweep the referenced packages' sources, which would then be
+  // checked under the root's compiler options rather than each package's own. A
+  // leaf project that declares real inputs *and* references dependencies is fine.
+  const raw = parsed.raw as { files?: unknown; include?: unknown } | undefined;
+  const declaresOwnInputs = raw?.files !== undefined || raw?.include !== undefined;
+  const hasReferences = (parsed.projectReferences?.length ?? 0) > 0;
+  if (hasReferences && (!declaresOwnInputs || parsed.fileNames.length === 0)) {
+    throw new Error(
+      `${tsConfigFilePath} is a solution-style tsconfig (its work is delegated to "references"). ` +
+        `Run ts-suppress from a leaf package directory, once per referenced package.`,
+    );
+  }
+
+  // Reachable when a config declares no usable inputs but TypeScript itself
+  // stayed quiet, which it does whenever a "references" key is present.
   if (parsed.fileNames.length === 0) {
-    if (parsed.projectReferences && parsed.projectReferences.length > 0) {
-      throw new Error(
-        `${tsConfigFilePath} is a solution-style tsconfig (only "references", no input files). ` +
-          `Point ts-suppress at a concrete leaf project's tsconfig, or run it once per referenced package.`,
-      );
-    }
     throw new Error(
       `No input files found for ${tsConfigFilePath}. Check its "include"/"files" settings.`,
     );
