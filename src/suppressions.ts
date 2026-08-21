@@ -1,5 +1,4 @@
 import { readFile, writeFile, rename, rm, access } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
 import { LogLevels } from "consola";
 import { resolve } from "node:path";
 import { logger } from "./logger.js";
@@ -100,6 +99,25 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
     );
   }
 
+  // Validate every entry here, not at first use. An unchecked entry either crashes
+  // later without the filename, or (a string `code`, a missing `scope`) silently
+  // matches no diagnostic and stays stale forever.
+  const entries: unknown[] = (parsed as { suppressions: unknown[] }).suppressions;
+  entries.forEach((entry, i) => {
+    const s = entry as Partial<Suppression> | null;
+    if (
+      s == null ||
+      typeof s !== "object" ||
+      typeof s.file !== "string" ||
+      typeof s.code !== "number" ||
+      typeof s.scope !== "string"
+    ) {
+      throw new Error(
+        `Invalid ${SUPPRESSIONS_FILENAME} at ${filePath}: suppressions[${i}] must have a string 'file', a number 'code', and a string 'scope'`,
+      );
+    }
+  });
+
   // version is absent in legacy files, so relax it to optional for the read.
   const data = parsed as Partial<SuppressionFile> & { suppressions: Suppression[] };
   if (typeof data.version === "number" && data.version !== SUPPRESSIONS_SCHEMA_VERSION) {
@@ -125,12 +143,18 @@ export async function writeSuppressions(
   // Write to a unique temp file and rename into place. rename is atomic on the
   // same filesystem, so a crash or ENOSPC mid-write can never leave the canonical
   // baseline truncated (which readSuppressions would then reject).
-  const tmp = `${filePath}.${randomUUID()}.tmp`;
+  const tmp = `${filePath}.tmp`;
   try {
     await writeFile(tmp, content);
     await rename(tmp, filePath);
   } catch (err) {
-    await rm(tmp, { force: true });
+    // A signal (Ctrl-C, SIGKILL) can still leave the temp file behind. The name is
+    // fixed so the next write overwrites it rather than accumulating strays.
+    try {
+      await rm(tmp, { force: true });
+    } catch {
+      // Never let cleanup mask the real write failure (e.g. ENOSPC).
+    }
     throw err;
   }
   logger.debug(`suppressions: write ${filePath} (${suppressions.length})`);

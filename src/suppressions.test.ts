@@ -71,6 +71,12 @@ describe("readSuppressions validation", () => {
     ["empty object (no suppressions key)", "{}"],
     ["top-level array", "[]"],
     ["suppressions is not an array", '{"suppressions": 123}'],
+    ["a null entry", '{"suppressions": [null]}'],
+    ["an entry missing scope", '{"suppressions": [{"file": "a.ts", "code": 2322}]}'],
+    [
+      "an entry with a string code",
+      '{"suppressions": [{"file": "a.ts", "code": "2322", "scope": ""}]}',
+    ],
   ];
 
   test.each(cases)("throws a clear error on %s", async (_label, content) => {
