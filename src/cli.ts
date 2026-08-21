@@ -5,6 +5,7 @@ import { LogLevels } from "consola";
 import { createProject } from "./project.js";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
+import { runPrune } from "./commands/prune.js";
 import { runSuppress } from "./commands/suppress.js";
 import { runUpdate } from "./commands/update.js";
 import { logger, LOG_LEVEL_NAMES, setLogLevel } from "./logger.js";
@@ -91,6 +92,18 @@ cli
     await runAction(async () => {
       const { project, projectRoot } = createProject(process.cwd());
       await runUpdate(project, projectRoot);
+    });
+  });
+
+cli
+  .command("prune", "Remove stale suppressions without adding new ones")
+  .option(...LOG_LEVEL_FLAG)
+  .example("ts-suppress prune   # Drop suppressions for errors you have fixed")
+  .action(async (options: { logLevel?: string }) => {
+    applyLogLevel(options);
+    await runAction(async () => {
+      const { project, projectRoot } = createProject(process.cwd());
+      await runPrune(project, projectRoot);
     });
   });
 
