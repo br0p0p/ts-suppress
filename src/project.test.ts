@@ -42,14 +42,8 @@ test("createProject throws on a solution-style tsconfig instead of silently pass
 });
 
 test("createProject reports every config error, not just the first", () => {
-  let message = "";
-  try {
-    createProject(badConfigFixture);
-    expect.fail("createProject should have thrown for bad-config");
-  } catch (e) {
-    message = (e as Error).message;
-  }
-  // Both invalid options should surface in a single run.
-  expect(message).toMatch(/target/);
-  expect(message).toMatch(/strict/);
+  // Both invalid options surface in a single run, so one fix-and-rerun cycle
+  // is enough instead of one per bad option.
+  expect(() => createProject(badConfigFixture)).toThrow(/target/);
+  expect(() => createProject(badConfigFixture)).toThrow(/strict/);
 });
