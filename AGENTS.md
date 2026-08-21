@@ -26,6 +26,7 @@ src/
     suppress.ts        # Capture current TS errors into suppressions
     check.ts           # Verify no new unsuppressed errors
     update.ts          # Refresh suppressions after code changes
+    prune.ts           # Remove stale suppressions without adding new ones
   project.ts           # tsconfig.json discovery, TypeScript Program creation
   diagnostics.ts       # Collects TS pre-emit diagnostics, fingerprints errors
   suppressions.ts      # Reads/writes .ts-suppressions.json, diff logic
@@ -62,8 +63,11 @@ Use pnpm exclusively. Don't use npm, yarn, or bun.
 
 Tests are colocated with source files (`*.test.ts`). Use `vitest` imports (`test`, `expect`, `describe`).
 
+Run focused tests with `pnpm test <file-pattern>` (filters test files) or `pnpm test -t <test-name>` (filters by test name). Plain `pnpm test` runs the whole suite once.
+
 ## Gotchas
 
 - Build uses a separate `tsconfig.build.json` — the root `tsconfig.json` is for development type-checking only
 - Pre-commit hooks run via husky + lint-staged (lints JS/TS, formats everything)
 - TypeScript >= 5.9.3 is a peer dependency
+- To reproduce suppression churn, diff diagnostics between two checkouts of a consumer repo: `git worktree add` at the fork commit, symlink the target's `node_modules` in, run the CLI with `--log-level debug`, and compare.
