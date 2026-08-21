@@ -74,6 +74,6 @@ test("prune leaves unsuppressed errors failing check", async () => {
   await runPrune(errorProject(), "/", tempDir);
   const check = await runCheck(errorProject(), "/", tempDir);
   expect(check.stale).toEqual([]);
-  expect(check.unsuppressed.length).toBeGreaterThan(0);
+  expect(check.unsuppressed.length).toBe(1);
   expect(check.exitCode).toBe(1);
 });
