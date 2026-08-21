@@ -81,6 +81,18 @@ The `check` command diffs the current diagnostics against the suppression file a
 
 `check` exits `0` when both lists are empty and `1` otherwise, so it plugs directly into CI.
 
+## Monorepos and project references
+
+Every command reads the nearest `tsconfig.json` above the current directory, so run ts-suppress from the package you want to check. Each package keeps its own `.ts-suppressions.json`.
+
+ts-suppress refuses to run against a solution-style root — a `tsconfig.json` whose every input file belongs to one of its `references`, including the `"files": []` form. Such a root either checks nothing at all or checks its packages' sources under the root's compiler options rather than each package's own, and both produce a clean report that means nothing. Run the tool once per package instead:
+
+```bash
+for pkg in packages/*; do (cd "$pkg" && ts-suppress check); done
+```
+
+A package that has sources of its own and also lists `references` for its dependencies is a normal composite project, and works as expected.
+
 ## Comparison with ts-bulk-suppress
 
 ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok and shares the same core idea: capture TypeScript errors into an external file instead of scattering `@ts-ignore` comments. The two tools take different approaches to the problem.

@@ -9,6 +9,8 @@ const solutionFixture = resolve(import.meta.dirname!, "../fixtures/solution");
 const badConfigFixture = resolve(import.meta.dirname!, "../fixtures/bad-config");
 const solutionGlobFixture = resolve(import.meta.dirname!, "../fixtures/solution-glob");
 const leafWithRefsFixture = resolve(import.meta.dirname!, "../fixtures/leaf-with-refs");
+const compositeLeafFixture = resolve(import.meta.dirname!, "../fixtures/composite-leaf");
+const emptyRefsFixture = resolve(import.meta.dirname!, "../fixtures/empty-refs");
 
 test("findTsConfig finds tsconfig.json in the given directory", () => {
   const result = findTsConfig(basicFixture);
@@ -55,11 +57,27 @@ test("createProject accepts a leaf project that both declares inputs and has ref
   expect(project.program.getRootFileNames()).toHaveLength(1);
 });
 
+test("createProject accepts a composite leaf that omits include and references a sibling", () => {
+  // The common monorepo package shape: no "files"/"include", so the default glob
+  // picks up both its own sources and the referenced package's. Owning one source
+  // of its own is what separates this from a solution root.
+  const { project } = createProject(compositeLeafFixture);
+  expect(
+    project.program.getRootFileNames().some((f) => f.endsWith("composite-leaf/index.ts")),
+  ).toBe(true);
+});
+
 test("createProject surfaces the error a solution root would have hidden", () => {
   // The leaf the thrown message points users at must actually report the error.
   const { project } = createProject(resolve(solutionFixture, "pkg"));
   const diagnostics = ts.getPreEmitDiagnostics(project.program);
   expect(diagnostics.length).toBeGreaterThan(0);
+});
+
+test("createProject reports a config with no inputs at all", () => {
+  // An empty "references" key silences TypeScript's own no-inputs error, so this
+  // is the shape that reaches the fallback throw rather than the parse-error one.
+  expect(() => createProject(emptyRefsFixture)).toThrow(/No input files found/);
 });
 
 test("createProject reports every config error, not just the first", () => {

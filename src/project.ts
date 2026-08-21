@@ -1,11 +1,17 @@
 import ts from "typescript";
 import { LogLevels } from "consola";
-import { dirname } from "node:path";
+import { dirname, relative, isAbsolute } from "node:path";
 import { logger } from "./logger.js";
 
 /** Thin wrapper around ts.Program — the only surface area consumers need. */
 export interface TsProject {
   program: ts.Program;
+}
+
+/** True when `file` sits inside `dir` (or is `dir` itself). */
+function isInside(dir: string, file: string): boolean {
+  const rel = relative(dir, file);
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
 }
 
 /**
@@ -42,24 +48,29 @@ export function createProject(cwd: string): { project: TsProject; projectRoot: s
     );
   }
 
-  // A solution-style root delegates all its work to "references" and declares no
-  // inputs of its own. Both of its shapes check nothing useful: `"files": []`
-  // yields an empty Program, and omitting "files"/"include" entirely lets the
-  // default **/* glob sweep the referenced packages' sources, which would then be
-  // checked under the root's compiler options rather than each package's own. A
-  // leaf project that declares real inputs *and* references dependencies is fine.
-  const raw = parsed.raw as { files?: unknown; include?: unknown } | undefined;
-  const declaresOwnInputs = raw?.files !== undefined || raw?.include !== undefined;
-  const hasReferences = (parsed.projectReferences?.length ?? 0) > 0;
-  if (hasReferences && (!declaresOwnInputs || parsed.fileNames.length === 0)) {
+  // A solution-style root contributes no sources of its own — everything it would
+  // check belongs to a referenced project. Both of its shapes check nothing
+  // useful: `"files": []` builds an empty Program, and omitting "files"/"include"
+  // lets the default **/* glob sweep the referenced packages' sources, which are
+  // then checked under the root's compiler options instead of each package's own.
+  // Owning even one source file means this is a real leaf project that happens to
+  // reference its dependencies, which is the normal composite setup and fine.
+  const referenceRoots = (parsed.projectReferences ?? []).map((ref) =>
+    ref.path.endsWith(".json") ? dirname(ref.path) : ref.path,
+  );
+  const ownsAnySource = parsed.fileNames.some(
+    (file) => !referenceRoots.some((refRoot) => isInside(refRoot, file)),
+  );
+  if (referenceRoots.length > 0 && !ownsAnySource) {
     throw new Error(
-      `${tsConfigFilePath} is a solution-style tsconfig (its work is delegated to "references"). ` +
+      `${tsConfigFilePath} is a solution-style tsconfig (every input file belongs to a referenced project). ` +
         `Run ts-suppress from a leaf package directory, once per referenced package.`,
     );
   }
 
-  // Reachable when a config declares no usable inputs but TypeScript itself
-  // stayed quiet, which it does whenever a "references" key is present.
+  // TypeScript reports its own "no inputs were found" error for most empty
+  // configs, but stays quiet when a "references" key is present — so an empty
+  // `"references": []` reaches this.
   if (parsed.fileNames.length === 0) {
     throw new Error(
       `No input files found for ${tsConfigFilePath}. Check its "include"/"files" settings.`,
