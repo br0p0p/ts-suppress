@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "target": "bogus",
+    "strict": "yes"
+  },
+  "include": ["index.ts"]
+}

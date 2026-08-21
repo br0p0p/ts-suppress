@@ -39,5 +39,5 @@
     "builtin": true
   },
   "globals": {},
-  "ignorePatterns": ["CHANGELOG.md"]
+  "ignorePatterns": ["CHANGELOG.md", "fixtures/bad-config"]
 }
