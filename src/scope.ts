@@ -27,13 +27,36 @@ export function buildScopePath(node: ts.Node): string {
   return parts.join(".");
 }
 
+/**
+ * Extract a stable scope segment from a member name. Returns null for names
+ * that have no stable identifier text:
+ *   - Identifiers and private identifiers (`#x`) → their `.text` (the `#` is kept,
+ *     and is itself stable).
+ *   - String/numeric literal names → `.text`, dropping quotes/brackets so the
+ *     segment is a plain identifier-like token rather than `o."weird-key"` / `o.123`.
+ *   - Computed names (`["a" + b]`) → null. Their source is an arbitrary expression,
+ *     not a stable anchor: it shifts when unrelated code in the key changes, which
+ *     would silently invalidate suppressions. Returning null keeps the member
+ *     anonymous, consistent with the scalar-anonymity policy below — the error
+ *     still anchors to the enclosing class/variable name.
+ */
+function memberName(name: ts.PropertyName): string | null {
+  if (ts.isIdentifier(name) || ts.isPrivateIdentifier(name)) {
+    return name.text;
+  }
+  if (ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return null;
+}
+
 function getScopeName(node: ts.Node): string | null {
   if (ts.isFunctionDeclaration(node)) {
     return node.name?.text ?? null;
   }
 
   if (ts.isMethodDeclaration(node)) {
-    return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+    return memberName(node.name);
   }
 
   if (ts.isClassDeclaration(node)) {
@@ -57,13 +80,13 @@ function getScopeName(node: ts.Node): string | null {
   }
 
   if (ts.isGetAccessorDeclaration(node)) {
-    const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
-    return `get:${name}`;
+    const name = memberName(node.name);
+    return name == null ? null : `get:${name}`;
   }
 
   if (ts.isSetAccessorDeclaration(node)) {
-    const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
-    return `set:${name}`;
+    const name = memberName(node.name);
+    return name == null ? null : `set:${name}`;
   }
 
   if (ts.isConstructorDeclaration(node)) {
@@ -89,14 +112,14 @@ function getScopeName(node: ts.Node): string | null {
 
   if (ts.isPropertyDeclaration(node)) {
     if (node.initializer && hasNameableInitializer(node.initializer)) {
-      return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+      return memberName(node.name);
     }
     return null;
   }
 
   if (ts.isPropertyAssignment(node)) {
     if (hasNameableInitializer(node.initializer)) {
-      return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+      return memberName(node.name);
     }
     return null;
   }
