@@ -105,10 +105,13 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
   // Warn before validating entries. A version bump most likely means the entry
   // shape changed, so if the check ran after validation the user would only see
   // "suppressions[0] must have a string 'file'" about a schema this CLI predates.
-  if (typeof data.version === "number" && data.version !== SUPPRESSIONS_SCHEMA_VERSION) {
+  // Any version that isn't ours warns, including a non-number one. Throwing on an
+  // unrecognized shape here would defeat the point of the warning.
+  if (data.version !== undefined && data.version !== SUPPRESSIONS_SCHEMA_VERSION) {
     logger.warn(
       `${SUPPRESSIONS_FILENAME} was written with schema version ${data.version}, but this tool uses version ${SUPPRESSIONS_SCHEMA_VERSION}. ` +
-        `Scope semantics may have changed; run \`ts-suppress update\` to refresh.`,
+        `Scope semantics may have changed; run \`ts-suppress update\` to refresh, ` +
+        `or \`ts-suppress suppress\` to rebuild the baseline if the entries below are rejected.`,
     );
   }
 

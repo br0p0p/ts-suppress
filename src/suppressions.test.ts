@@ -180,6 +180,15 @@ describe("diffSuppressions (scope identity)", () => {
     expect(stale).toEqual([s("a.ts", 2339, "oldName")]);
   });
 
+  test("preserves input order in both lists", () => {
+    // check prints these lists verbatim, so order is user-visible.
+    const existing = [s("y.ts", 1, ""), s("x.ts", 1, "")];
+    const current = [s("b.ts", 1, ""), s("a.ts", 1, "")];
+    const { unsuppressed, stale } = diffSuppressions(existing, current);
+    expect(unsuppressed).toEqual([s("b.ts", 1, ""), s("a.ts", 1, "")]);
+    expect(stale).toEqual([s("y.ts", 1, ""), s("x.ts", 1, "")]);
+  });
+
   test("describeSuppression shows scope, omitting the bracket for module scope", () => {
     expect(describeSuppression(s("a.ts", 2339, "foo"))).toBe("a.ts TS2339 [foo]");
     expect(describeSuppression(s("a.ts", 2322, ""))).toBe("a.ts TS2322");

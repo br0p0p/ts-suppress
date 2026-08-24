@@ -28,24 +28,24 @@ Incremental TypeScript strictness adoption via bulk error suppression. Instead o
 
 ## Suppression File Format
 
-`.ts-suppressions.json` contains fingerprinted error entries:
+`.ts-suppressions.json` identifies each error by file, code, and scope:
 
 ```json
 {
+  "version": 1,
   "suppressions": [
     {
       "file": "src/utils.ts",
       "code": 2322,
-      "hash": "a1b2c3...",
       "scope": "MyClass.myMethod"
     }
   ]
 }
 ```
 
+- **version** — the schema the file was written under
 - **file** — relative path to source file
 - **code** — TypeScript error code
-- **hash** — SHA256 of the diagnostic message text
 - **scope** — dot-separated scope chain (e.g. `MyClass.myMethod`, empty for module-level)
 
 ## Requirements
