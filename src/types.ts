@@ -10,5 +10,11 @@ export interface Suppression {
 
 /** The shape of .ts-suppressions.json */
 export interface SuppressionFile {
+  /**
+   * Schema version. Bumped when scope or identity semantics change in a way that would
+   * invalidate previously-written suppressions. Files written before this field
+   * existed have no version and are treated as legacy-compatible.
+   */
+  version: number;
   suppressions: Suppression[];
 }

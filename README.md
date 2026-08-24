@@ -70,6 +70,8 @@ Example `.ts-suppressions.json` entry:
 { "file": "src/api.ts", "code": 2322, "scope": "MyClass.myMethod" }
 ```
 
+The file also carries a `version` field naming the schema it was written under. If a newer release changes how scopes are computed, an older CLI reading the file prints a warning and keeps going, so you can regenerate with `ts-suppress update` on your own schedule. Entries still have to match the shape this CLI understands, so if a future schema changes that shape the older CLI warns about the version and then rejects the file. `update`, `prune`, and `check` all read the file first, so they can't recover from that; run `ts-suppress suppress` to rebuild the baseline from current diagnostics. Files written before the field existed have no version and are accepted as-is.
+
 Suppressions with the same `file + code + scope` are matched by occurrence count, not deduplicated. If a scope has N errors of one code, the file holds N identical entries; fix one and `check` reports the remaining N−1 as still-unsuppressed.
 
 **Tradeoff:** because identity is anchored to the enclosing named node rather than the error message, suppressions are sticky — they survive refactors that don't move or rename that node, even if the error's wording changes. The flip side is that the tool can't tell when an error morphs into a different error of the same code inside the same scope: if you fix the original problem but introduce a new TS2322 in the same method, it stays silently suppressed. Module-level errors (outside any named function, class, or block) all share the empty `""` scope, so distinct module-level errors of the same code are indistinguishable from each other.

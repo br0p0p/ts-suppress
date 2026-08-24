@@ -1,4 +1,4 @@
-import { readFile, writeFile, access } from "node:fs/promises";
+import { readFile, writeFile, rename, rm, access } from "node:fs/promises";
 import { LogLevels } from "consola";
 import { resolve } from "node:path";
 import { logger } from "./logger.js";
@@ -11,6 +11,13 @@ export function describeSuppression(s: Suppression): string {
 
 export const SUPPRESSIONS_FILENAME = ".ts-suppressions.json";
 
+/**
+ * Current on-disk schema version. Bump when a scope or identity change would
+ * invalidate suppressions written by an older release; readSuppressions then
+ * warns so the drift is visible rather than silent.
+ */
+export const SUPPRESSIONS_SCHEMA_VERSION = 1;
+
 /** Compare function for deterministic sorting of suppressions */
 function compareSuppression(a: Suppression, b: Suppression): number {
   return a.file.localeCompare(b.file) || a.code - b.code || a.scope.localeCompare(b.scope);
@@ -21,13 +28,40 @@ function key(s: Suppression): string {
   return `${s.file}\0${s.code}\0${s.scope}`;
 }
 
-function countByKey(list: Suppression[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const s of list) {
+/**
+ * Match `consumers` against a pool drawn from `pool`, both keyed by `key`.
+ * Each consumer claims one available slot for its key; consumers with no slot
+ * left are returned (the "misses"). `onHit`/`onMiss` fire per consumer for tracing.
+ *
+ * Both diff passes are this same consume-from-a-pool operation with the lists
+ * swapped: unsuppressed = current not covered by existing; stale = existing not
+ * covered by current.
+ */
+function consume(
+  consumers: Suppression[],
+  pool: Suppression[],
+  onHit: (s: Suppression) => void,
+  onMiss: (s: Suppression) => void,
+): Suppression[] {
+  const available = new Map<string, number>();
+  for (const s of pool) {
     const k = key(s);
-    counts.set(k, (counts.get(k) ?? 0) + 1);
+    available.set(k, (available.get(k) ?? 0) + 1);
   }
-  return counts;
+
+  const misses: Suppression[] = [];
+  for (const s of consumers) {
+    const k = key(s);
+    const remaining = available.get(k) ?? 0;
+    if (remaining > 0) {
+      available.set(k, remaining - 1);
+      onHit(s);
+    } else {
+      misses.push(s);
+      onMiss(s);
+    }
+  }
+  return misses;
 }
 
 /** Read suppressions from .ts-suppressions.json in the given directory */
@@ -42,9 +76,67 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
   }
 
   const raw = await readFile(filePath, "utf-8");
-  const data: SuppressionFile = JSON.parse(raw);
-  logger.debug(`suppressions: read ${filePath} (${data.suppressions.length})`);
-  return data.suppressions;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    // A truncated/partial write or a hand-edit mistake. Fail loud — an empty or
+    // malformed file is far more likely corruption than an intentional "no
+    // suppressions" state (the not-found path above already covers the latter).
+    throw new Error(
+      `Invalid ${SUPPRESSIONS_FILENAME} (not valid JSON) at ${filePath}: ${(err as Error).message}`,
+    );
+  }
+
+  if (
+    parsed == null ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as { suppressions?: unknown }).suppressions)
+  ) {
+    throw new Error(
+      `Invalid ${SUPPRESSIONS_FILENAME} at ${filePath}: expected an object with a 'suppressions' array`,
+    );
+  }
+
+  // version is absent in legacy files, so relax it to optional for the read.
+  const data = parsed as Partial<SuppressionFile> & { suppressions: unknown[] };
+
+  // Warn before validating entries. A version bump most likely means the entry
+  // shape changed, so if the check ran after validation the user would only see
+  // "suppressions[0] must have a string 'file'" about a schema this CLI predates.
+  // Any version that isn't ours warns, including a non-number one. Throwing on an
+  // unrecognized shape here would defeat the point of the warning.
+  if (data.version !== undefined && data.version !== SUPPRESSIONS_SCHEMA_VERSION) {
+    logger.warn(
+      `${SUPPRESSIONS_FILENAME} was written with schema version ${data.version}, but this tool uses version ${SUPPRESSIONS_SCHEMA_VERSION}. ` +
+        `Scope semantics may have changed; run \`ts-suppress update\` to refresh, ` +
+        `or \`ts-suppress suppress\` to rebuild the baseline if the entries below are rejected.`,
+    );
+  }
+
+  // Validate every entry here, not at first use. An unchecked entry either crashes
+  // later without the filename, or (a string `code`, a missing `scope`) silently
+  // matches no diagnostic and stays stale forever. This still throws on a
+  // newer-version file whose entries don't fit — the warning above explains why.
+  data.suppressions.forEach((entry, i) => {
+    const s = entry as Partial<Suppression> | null;
+    if (
+      s == null ||
+      typeof s !== "object" ||
+      typeof s.file !== "string" ||
+      typeof s.code !== "number" ||
+      typeof s.scope !== "string"
+    ) {
+      throw new Error(
+        `Invalid ${SUPPRESSIONS_FILENAME} at ${filePath}: suppressions[${i}] must have a string 'file', a number 'code', and a string 'scope'`,
+      );
+    }
+  });
+
+  const suppressions = data.suppressions as Suppression[];
+  logger.debug(`suppressions: read ${filePath} (${suppressions.length})`);
+  return suppressions;
 }
 
 /** Write suppressions to .ts-suppressions.json, sorted deterministically */
@@ -55,8 +147,25 @@ export async function writeSuppressions(
   const filePath = resolve(projectRoot, SUPPRESSIONS_FILENAME);
   const sorted = [...suppressions].sort(compareSuppression);
   const lines = sorted.map((s) => "  " + JSON.stringify(s));
-  const content = `{"suppressions": [\n${lines.join(",\n")}\n]}\n`;
-  await writeFile(filePath, content);
+  const content = `{"version": ${SUPPRESSIONS_SCHEMA_VERSION}, "suppressions": [\n${lines.join(",\n")}\n]}\n`;
+
+  // Write to a temp file and rename into place. rename is atomic on the
+  // same filesystem, so a crash or ENOSPC mid-write can never leave the canonical
+  // baseline truncated (which readSuppressions would then reject).
+  const tmp = `${filePath}.tmp`;
+  try {
+    await writeFile(tmp, content);
+    await rename(tmp, filePath);
+  } catch (err) {
+    // A signal (Ctrl-C, SIGKILL) can still leave the temp file behind. The name is
+    // fixed so the next write overwrites it rather than accumulating strays.
+    try {
+      await rm(tmp, { force: true });
+    } catch {
+      // Never let cleanup mask the real write failure (e.g. ENOSPC).
+    }
+    throw err;
+  }
   logger.debug(`suppressions: write ${filePath} (${suppressions.length})`);
 }
 
@@ -77,38 +186,14 @@ export interface SuppressionDiff {
 export function diffSuppressions(existing: Suppression[], current: Suppression[]): SuppressionDiff {
   logger.debug(`diff: existing=${existing.length} current=${current.length}`);
   const traceEnabled = logger.level >= LogLevels.trace;
-  const existingCounts = countByKey(existing);
-  const currentCounts = countByKey(current);
+  const trace = (label: string) => (s: Suppression) => {
+    if (traceEnabled) logger.trace(`diff ${label}: ${describeSuppression(s)}`);
+  };
 
-  const unsuppressed: Suppression[] = [];
-  const consumedForUnsup = new Map<string, number>();
-  for (const s of current) {
-    const k = key(s);
-    const covered = existingCounts.get(k) ?? 0;
-    const used = consumedForUnsup.get(k) ?? 0;
-    if (used < covered) {
-      consumedForUnsup.set(k, used + 1);
-      if (traceEnabled) logger.trace(`diff matched: ${describeSuppression(s)}`);
-    } else {
-      unsuppressed.push(s);
-      if (traceEnabled) logger.trace(`diff unsuppressed: ${describeSuppression(s)}`);
-    }
-  }
-
-  const stale: Suppression[] = [];
-  const consumedForStale = new Map<string, number>();
-  for (const s of existing) {
-    const k = key(s);
-    const needed = currentCounts.get(k) ?? 0;
-    const used = consumedForStale.get(k) ?? 0;
-    if (used < needed) {
-      consumedForStale.set(k, used + 1);
-      if (traceEnabled) logger.trace(`diff covered: ${describeSuppression(s)}`);
-    } else {
-      stale.push(s);
-      if (traceEnabled) logger.trace(`diff stale: ${describeSuppression(s)}`);
-    }
-  }
+  // current not covered by existing → newly unsuppressed.
+  const unsuppressed = consume(current, existing, trace("matched"), trace("unsuppressed"));
+  // existing not covered by current → stale.
+  const stale = consume(existing, current, trace("covered"), trace("stale"));
 
   return { unsuppressed, stale };
 }

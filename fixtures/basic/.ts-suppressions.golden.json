@@ -1,3 +1,3 @@
-{"suppressions": [
+{"version": 1, "suppressions": [
   {"file":"has-errors.ts","code":2322,"scope":""}
 ]}

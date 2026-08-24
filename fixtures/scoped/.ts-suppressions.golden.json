@@ -1,4 +1,4 @@
-{"suppressions": [
+{"version": 1, "suppressions": [
   {"file":"scoped-errors.ts","code":2304,"scope":"MyEnum"},
   {"file":"scoped-errors.ts","code":2304,"scope":"MyInterface"},
   {"file":"scoped-errors.ts","code":2304,"scope":"MyTypeAlias"},
