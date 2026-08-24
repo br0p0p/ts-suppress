@@ -99,11 +99,24 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
     );
   }
 
+  // version is absent in legacy files, so relax it to optional for the read.
+  const data = parsed as Partial<SuppressionFile> & { suppressions: unknown[] };
+
+  // Warn before validating entries. A version bump most likely means the entry
+  // shape changed, so if the check ran after validation the user would only see
+  // "suppressions[0] must have a string 'file'" about a schema this CLI predates.
+  if (typeof data.version === "number" && data.version !== SUPPRESSIONS_SCHEMA_VERSION) {
+    logger.warn(
+      `${SUPPRESSIONS_FILENAME} was written with schema version ${data.version}, but this tool uses version ${SUPPRESSIONS_SCHEMA_VERSION}. ` +
+        `Scope semantics may have changed; run \`ts-suppress update\` to refresh.`,
+    );
+  }
+
   // Validate every entry here, not at first use. An unchecked entry either crashes
   // later without the filename, or (a string `code`, a missing `scope`) silently
-  // matches no diagnostic and stays stale forever.
-  const entries: unknown[] = (parsed as { suppressions: unknown[] }).suppressions;
-  entries.forEach((entry, i) => {
+  // matches no diagnostic and stays stale forever. This still throws on a
+  // newer-version file whose entries don't fit — the warning above explains why.
+  data.suppressions.forEach((entry, i) => {
     const s = entry as Partial<Suppression> | null;
     if (
       s == null ||
@@ -118,16 +131,9 @@ export async function readSuppressions(projectRoot: string): Promise<Suppression
     }
   });
 
-  // version is absent in legacy files, so relax it to optional for the read.
-  const data = parsed as Partial<SuppressionFile> & { suppressions: Suppression[] };
-  if (typeof data.version === "number" && data.version !== SUPPRESSIONS_SCHEMA_VERSION) {
-    logger.warn(
-      `${SUPPRESSIONS_FILENAME} was written with schema version ${data.version}, but this tool uses version ${SUPPRESSIONS_SCHEMA_VERSION}. ` +
-        `Scope semantics may have changed; run \`ts-suppress update\` to refresh.`,
-    );
-  }
-  logger.debug(`suppressions: read ${filePath} (${data.suppressions.length})`);
-  return data.suppressions;
+  const suppressions = data.suppressions as Suppression[];
+  logger.debug(`suppressions: read ${filePath} (${suppressions.length})`);
+  return suppressions;
 }
 
 /** Write suppressions to .ts-suppressions.json, sorted deterministically */
@@ -140,7 +146,7 @@ export async function writeSuppressions(
   const lines = sorted.map((s) => "  " + JSON.stringify(s));
   const content = `{"version": ${SUPPRESSIONS_SCHEMA_VERSION}, "suppressions": [\n${lines.join(",\n")}\n]}\n`;
 
-  // Write to a unique temp file and rename into place. rename is atomic on the
+  // Write to a temp file and rename into place. rename is atomic on the
   // same filesystem, so a crash or ENOSPC mid-write can never leave the canonical
   // baseline truncated (which readSuppressions would then reject).
   const tmp = `${filePath}.tmp`;

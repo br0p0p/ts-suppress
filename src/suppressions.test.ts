@@ -99,6 +99,23 @@ describe("readSuppressions validation", () => {
     }
   });
 
+  test("warns about the version before rejecting entries it can't read", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    try {
+      await writeFile(
+        resolve(tempDir, SUPPRESSIONS_FILENAME),
+        JSON.stringify({
+          version: SUPPRESSIONS_SCHEMA_VERSION + 1,
+          suppressions: [{ file: "a.ts", code: "1", scope: "" }],
+        }),
+      );
+      await expect(readSuppressions(tempDir)).rejects.toThrow("suppressions[0]");
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   test("accepts legacy files with no version field", async () => {
     const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
     try {

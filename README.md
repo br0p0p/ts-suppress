@@ -70,7 +70,7 @@ Example `.ts-suppressions.json` entry:
 { "file": "src/api.ts", "code": 2322, "scope": "MyClass.myMethod" }
 ```
 
-The file also carries a `version` field naming the schema it was written under. If a newer release changes how scopes are computed, an older CLI reading the file prints a warning and keeps going, so you can regenerate with `ts-suppress update` on your own schedule. Files written before the field existed have no version and are accepted as-is.
+The file also carries a `version` field naming the schema it was written under. If a newer release changes how scopes are computed, an older CLI reading the file prints a warning and keeps going, so you can regenerate with `ts-suppress update` on your own schedule. Entries still have to match the shape this CLI understands, so if a future schema changes that shape the older CLI warns about the version and then rejects the file. Files written before the field existed have no version and are accepted as-is.
 
 Suppressions with the same `file + code + scope` are matched by occurrence count, not deduplicated. If a scope has N errors of one code, the file holds N identical entries; fix one and `check` reports the remaining N−1 as still-unsuppressed.
 
