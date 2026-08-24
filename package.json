@@ -1,6 +1,6 @@
 {
   "name": "ts-suppress",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Incremental TypeScript strictness adoption via bulk error suppression",
   "keywords": [
     "migration",
