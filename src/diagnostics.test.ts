@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
-import { collectDiagnostics, formatDebugRecord } from "./diagnostics.js";
+import { collectDiagnostics, formatDebugRecord, toPosixPath } from "./diagnostics.js";
 import { logger, setLogLevel } from "./logger.js";
 import { createInMemoryProject, stripAnsi } from "./test-helpers.js";
 
@@ -12,6 +12,24 @@ const cleanProject = createInMemoryProject({
   "clean.ts": "export const x: number = 42;",
 });
 const cleanResults = collectDiagnostics(cleanProject, "/");
+
+describe("toPosixPath", () => {
+  test("converts Windows separators to forward slashes", () => {
+    expect(toPosixPath("src\\commands\\check.ts")).toBe("src/commands/check.ts");
+  });
+
+  test("leaves POSIX paths unchanged", () => {
+    expect(toPosixPath("src/commands/check.ts")).toBe("src/commands/check.ts");
+  });
+
+  test("collectDiagnostics emits forward-slash file paths", () => {
+    // sourceFile.fileName is POSIX-normalized by TS, so on POSIX hosts this is a
+    // regression guard; the unit cases above cover the Windows separator itself.
+    for (const r of errorResults) {
+      expect(r.suppression.file).not.toContain("\\");
+    }
+  });
+});
 
 test("collects diagnostics from a project with errors", () => {
   expect(errorResults.length).toBeGreaterThan(0);
@@ -119,12 +137,16 @@ describe("debug-level emission via consola mockTypes", () => {
     setLogLevel("info");
   });
 
-  test("no debug calls at default (info) level", () => {
+  test("only the cheap summary is logged at default (info) level", () => {
     const project = createInMemoryProject({
       "a.ts": `export const bad: number = "s";`,
     });
     collectDiagnostics(project, "/");
-    expect(vi.mocked(logger.debug).mock.calls).toHaveLength(0);
+    // consola suppresses the output below debug level, so the trivial summary
+    // call is left unguarded. The expensive per-record formatDebugRecord path
+    // stays guarded — verified by the absence of any per-record formatted call.
+    const calls = vi.mocked(logger.debug).mock.calls;
+    expect(calls).toEqual([["diagnostics: 1"]]);
   });
 
   test("one debug call per diagnostic at debug level (plus a summary)", () => {
