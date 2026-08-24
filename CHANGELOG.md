@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v2.1.0...ts-suppress-v2.2.0) (2026-08-24)
+
+
+### Features
+
+* **suppressions:** version the schema, validate reads, write atomically ([#51](https://github.com/br0p0p/ts-suppress/issues/51)) ([1e83684](https://github.com/br0p0p/ts-suppress/commit/1e8368405bc2752caad5c01e17d12e82b2fc7ff2))
+
+
+### Bug Fixes
+
+* **project:** guard solution-style tsconfigs and report all config errors ([#28](https://github.com/br0p0p/ts-suppress/issues/28)) ([373de31](https://github.com/br0p0p/ts-suppress/commit/373de31c9ec8d1bfa92879c5c6e88c775959d631))
+
 ## [2.1.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v2.0.0...ts-suppress-v2.1.0) (2026-08-21)
 
 
