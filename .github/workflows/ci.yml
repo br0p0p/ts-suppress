@@ -44,11 +44,13 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [20, 22, 24]
-        typescript: ["5.9"]
+        # "" = the dev dependency's TypeScript. Default jobs keep the plain
+        # "Test (Node N)" names, which main's ruleset requires.
+        typescript: [""]
         include:
           - node-version: 24
             typescript: "6"
-    name: Test (Node ${{ matrix.node-version }}, TS ${{ matrix.typescript }})
+    name: Test (Node ${{ matrix.node-version }}${{ matrix.typescript && format(', TS {0}', matrix.typescript) || '' }})
     steps:
       - uses: actions/checkout@v4
 
