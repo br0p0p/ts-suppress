@@ -50,5 +50,5 @@ Incremental TypeScript strictness adoption via bulk error suppression. Instead o
 
 ## Requirements
 
-- TypeScript 5.9 or 6. On TypeScript 7, alias `"typescript": "npm:@typescript/typescript6@^6"` next to `"@typescript/native": "npm:typescript@^7"` (see the README's "Using with TypeScript 7"); TS 6 and 7 may report different error sets, so expect some suppression churn when switching checkers.
+- TypeScript 5.9, 6, or 7.1+ (7.1+ uses the native `typescript/unstable/*` API automatically). On 7.0, upgrade or alias `"typescript": "npm:@typescript/typescript6@^6"` (see the README's "Using with TypeScript 7"). TS 6 and 7 may report different error sets, so expect some suppression churn when switching checkers.
 - A `tsconfig.json` in the project (ts-suppress walks up directories to find it)

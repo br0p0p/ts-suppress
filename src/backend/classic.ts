@@ -55,17 +55,6 @@ export function classicProjectFromProgram(program: ts.Program): TsProject {
 /** Create a project from the nearest tsconfig.json with the TypeScript 5.9/6 JS API. */
 export function createClassicProject(cwd: string): { project: TsProject; projectRoot: string } {
   logger.debug(`typescript: ${ts.version}`);
-  // TypeScript 7's "typescript" entry point only exports version info — the JS
-  // compiler API moved to `typescript/unstable/*`. Fail with the fix instead of
-  // `ts.findConfigFile is not a function`.
-  if (typeof ts.createProgram !== "function") {
-    throw new Error(
-      `ts-suppress needs the TypeScript JS API (TypeScript 5.9 or 6), but the installed "typescript" is ${ts.version}, which does not provide it.\n` +
-        `Keep TypeScript 7 for tsc and point "typescript" at TypeScript 6 in package.json:\n` +
-        `  "typescript": "npm:@typescript/typescript6@^6",\n` +
-        `  "@typescript/native": "npm:typescript@^7"`,
-    );
-  }
   logger.debug(`cwd: ${cwd}`);
   const tsConfigFilePath = findTsConfig(cwd);
   logger.debug(`tsconfig: ${tsConfigFilePath}`);
