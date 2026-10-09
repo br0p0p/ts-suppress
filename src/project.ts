@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join, relative, isAbsolute } from "node:path";
 import { logger } from "./logger.js";
+import type { NativeAstIs, NativeSync } from "./backend/native.js";
 
 /** A pre-emit diagnostic located in a source file, with its scope resolved. */
 export interface ProjectDiagnostic {
@@ -113,10 +114,7 @@ export async function loadProject(
   return createNativeProject(cwd, sync, is);
 }
 
-type NativeModules = [
-  Parameters<typeof import("./backend/native.js").createNativeProject>[1],
-  Parameters<typeof import("./backend/native.js").createNativeProject>[2],
-];
+type NativeModules = [NativeSync, NativeAstIs];
 
 /**
  * The consumer's own TypeScript 7 API modules. Specifiers live in variables so
