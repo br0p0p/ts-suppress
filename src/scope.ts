@@ -1,4 +1,33 @@
-import ts from "typescript";
+import type ts from "typescript";
+
+/**
+ * The AST predicates and traversal scope resolution needs. Typed against the
+ * classic API; TypeScript 7's native AST (`typescript/unstable/ast/is`) has the
+ * same structural shape, so one implementation serves every backend.
+ */
+export type ScopeAst = Pick<
+  typeof ts,
+  | "forEachChild"
+  | "isArrowFunction"
+  | "isCallExpression"
+  | "isClassDeclaration"
+  | "isClassExpression"
+  | "isConstructorDeclaration"
+  | "isEnumDeclaration"
+  | "isFunctionDeclaration"
+  | "isFunctionExpression"
+  | "isGetAccessorDeclaration"
+  | "isIdentifier"
+  | "isInterfaceDeclaration"
+  | "isMethodDeclaration"
+  | "isModuleDeclaration"
+  | "isObjectLiteralExpression"
+  | "isPropertyAssignment"
+  | "isPropertyDeclaration"
+  | "isSetAccessorDeclaration"
+  | "isTypeAliasDeclaration"
+  | "isVariableDeclaration"
+>;
 
 /**
  * Build a dot-separated scope path by walking up the AST from a node.
@@ -12,12 +41,12 @@ import ts from "typescript";
  *   - "config.endpoints" for an object property holding an arrow function
  *   - "" for module scope
  */
-export function buildScopePath(node: ts.Node): string {
+export function buildScopePath(ast: ScopeAst, node: ts.Node): string {
   const parts: string[] = [];
   let current: ts.Node | undefined = node;
 
   while (current) {
-    const name = getScopeName(current);
+    const name = getScopeName(ast, current);
     if (name != null) {
       parts.unshift(name);
     }
@@ -27,46 +56,46 @@ export function buildScopePath(node: ts.Node): string {
   return parts.join(".");
 }
 
-function getScopeName(node: ts.Node): string | null {
-  if (ts.isFunctionDeclaration(node)) {
+function getScopeName(ast: ScopeAst, node: ts.Node): string | null {
+  if (ast.isFunctionDeclaration(node)) {
     return node.name?.text ?? null;
   }
 
-  if (ts.isMethodDeclaration(node)) {
-    return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+  if (ast.isMethodDeclaration(node)) {
+    return ast.isIdentifier(node.name) ? node.name.text : node.name.getText();
   }
 
-  if (ts.isClassDeclaration(node)) {
+  if (ast.isClassDeclaration(node)) {
     return node.name?.text ?? null;
   }
 
-  if (ts.isInterfaceDeclaration(node)) {
+  if (ast.isInterfaceDeclaration(node)) {
     return node.name.text;
   }
 
-  if (ts.isTypeAliasDeclaration(node)) {
+  if (ast.isTypeAliasDeclaration(node)) {
     return node.name.text;
   }
 
-  if (ts.isEnumDeclaration(node)) {
+  if (ast.isEnumDeclaration(node)) {
     return node.name.text;
   }
 
-  if (ts.isModuleDeclaration(node)) {
-    return ts.isIdentifier(node.name) ? node.name.text : null;
+  if (ast.isModuleDeclaration(node)) {
+    return ast.isIdentifier(node.name) ? node.name.text : null;
   }
 
-  if (ts.isGetAccessorDeclaration(node)) {
-    const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+  if (ast.isGetAccessorDeclaration(node)) {
+    const name = ast.isIdentifier(node.name) ? node.name.text : node.name.getText();
     return `get:${name}`;
   }
 
-  if (ts.isSetAccessorDeclaration(node)) {
-    const name = ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+  if (ast.isSetAccessorDeclaration(node)) {
+    const name = ast.isIdentifier(node.name) ? node.name.text : node.name.getText();
     return `set:${name}`;
   }
 
-  if (ts.isConstructorDeclaration(node)) {
+  if (ast.isConstructorDeclaration(node)) {
     return "constructor";
   }
 
@@ -76,27 +105,27 @@ function getScopeName(node: ts.Node): string | null {
   // `const handler = useCallback(() => ..., [])`). Scalars, arrays, and calls
   // with no nameable args stay anonymous so unrelated edits in the same module
   // or class don't shift suppression scopes.
-  if (ts.isVariableDeclaration(node)) {
+  if (ast.isVariableDeclaration(node)) {
     if (
-      ts.isIdentifier(node.name) &&
+      ast.isIdentifier(node.name) &&
       node.initializer &&
-      hasNameableInitializer(node.initializer)
+      hasNameableInitializer(ast, node.initializer)
     ) {
       return node.name.text;
     }
     return null;
   }
 
-  if (ts.isPropertyDeclaration(node)) {
-    if (node.initializer && hasNameableInitializer(node.initializer)) {
-      return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+  if (ast.isPropertyDeclaration(node)) {
+    if (node.initializer && hasNameableInitializer(ast, node.initializer)) {
+      return ast.isIdentifier(node.name) ? node.name.text : node.name.getText();
     }
     return null;
   }
 
-  if (ts.isPropertyAssignment(node)) {
-    if (hasNameableInitializer(node.initializer)) {
-      return ts.isIdentifier(node.name) ? node.name.text : node.name.getText();
+  if (ast.isPropertyAssignment(node)) {
+    if (hasNameableInitializer(ast, node.initializer)) {
+      return ast.isIdentifier(node.name) ? node.name.text : node.name.getText();
     }
     return null;
   }
@@ -112,17 +141,17 @@ function getScopeName(node: ts.Node): string | null {
 // iteration-style assignments such as `const items = arr.map(arrow)`. Both
 // are correct: the variable name is the meaningful anchor for any error
 // inside the wrapped body regardless of what the outer call is "for".
-function hasNameableInitializer(node: ts.Node): boolean {
+function hasNameableInitializer(ast: ScopeAst, node: ts.Node): boolean {
   if (
-    ts.isArrowFunction(node) ||
-    ts.isFunctionExpression(node) ||
-    ts.isClassExpression(node) ||
-    ts.isObjectLiteralExpression(node)
+    ast.isArrowFunction(node) ||
+    ast.isFunctionExpression(node) ||
+    ast.isClassExpression(node) ||
+    ast.isObjectLiteralExpression(node)
   ) {
     return true;
   }
-  if (ts.isCallExpression(node)) {
-    return node.arguments.some(hasNameableInitializer);
+  if (ast.isCallExpression(node)) {
+    return node.arguments.some((arg) => hasNameableInitializer(ast, arg));
   }
   return false;
 }

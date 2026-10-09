@@ -1,5 +1,6 @@
 import ts from "typescript";
 import type { TsProject } from "./project.js";
+import { classicProjectFromProgram } from "./backend/classic.js";
 
 // Strip ANSI color codes so output assertions are deterministic regardless of
 // the ambient FORCE_COLOR / NO_COLOR / TTY state (styleStderr and tsc's
@@ -50,6 +51,5 @@ export function createInMemoryProject(files: Record<string, string>): TsProject 
     return fileMap.get(fileName) ?? originalReadFile(fileName);
   };
 
-  const program = ts.createProgram(fileNames, options, host);
-  return { program };
+  return classicProjectFromProgram(ts.createProgram(fileNames, options, host));
 }

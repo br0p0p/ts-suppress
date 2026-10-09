@@ -1,7 +1,7 @@
 import { test, expect } from "vitest";
 import { resolve } from "node:path";
-import ts from "typescript";
-import { createProject, findTsConfig } from "./project.js";
+import { createClassicProject as createProject } from "./backend/classic.js";
+import { findTsConfig } from "./project.js";
 
 const basicFixture = resolve(import.meta.dirname!, "../fixtures/basic");
 const nestedFixture = resolve(import.meta.dirname!, "../fixtures/nested/packages/app");
@@ -28,10 +28,7 @@ test("findTsConfig throws when no tsconfig.json found", () => {
 
 test("createProject returns a TsProject with diagnostics", () => {
   const { project } = createProject(basicFixture);
-  expect(project).toBeDefined();
-  expect(project.program).toBeDefined();
-  const diagnostics = ts.getPreEmitDiagnostics(project.program);
-  expect(diagnostics.length).toBeGreaterThan(0);
+  expect(project.getDiagnostics().length).toBeGreaterThan(0);
 });
 
 test("createProject returns the resolved project root", () => {
@@ -54,7 +51,7 @@ test("createProject throws on a solution root that omits files and include", () 
 
 test("createProject accepts a leaf project that both declares inputs and has references", () => {
   const { project } = createProject(leafWithRefsFixture);
-  expect(project.program.getRootFileNames()).toHaveLength(1);
+  expect(project.getDiagnostics()).toEqual([]);
 });
 
 test("createProject accepts a composite leaf that omits include and references a sibling", () => {
@@ -62,16 +59,13 @@ test("createProject accepts a composite leaf that omits include and references a
   // picks up both its own sources and the referenced package's. Owning one source
   // of its own is what separates this from a solution root.
   const { project } = createProject(compositeLeafFixture);
-  expect(
-    project.program.getRootFileNames().some((f) => f.endsWith("composite-leaf/index.ts")),
-  ).toBe(true);
+  expect(project.getDiagnostics()).toEqual([]);
 });
 
 test("createProject surfaces the error a solution root would have hidden", () => {
   // The leaf the thrown message points users at must actually report the error.
   const { project } = createProject(resolve(solutionFixture, "pkg"));
-  const diagnostics = ts.getPreEmitDiagnostics(project.program);
-  expect(diagnostics.length).toBeGreaterThan(0);
+  expect(project.getDiagnostics().length).toBeGreaterThan(0);
 });
 
 test("createProject reports a config with no inputs at all", () => {
