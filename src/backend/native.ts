@@ -89,7 +89,7 @@ export function createNativeProject(
       { projectReferences: parsed.projectReferences },
     );
     const ast = nativeAst(is);
-    const original = new Map<ProjectDiagnostic, Diagnostic>();
+    const original = new WeakMap<ProjectDiagnostic, Diagnostic>();
 
     const project: TsProject = {
       getDiagnostics() {
