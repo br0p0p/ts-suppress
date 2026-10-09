@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^24",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitest/coverage-v8": "^3.2.4",
     "fast-check": "^4.7.0",
     "husky": "^9.1.7",
@@ -59,7 +60,7 @@
     "oxlint": "^1.56.0",
     "oxlint-tsgolint": "^0.17.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.9.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^3.2.1"
   },
   "peerDependencies": {
