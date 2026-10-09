@@ -80,5 +80,5 @@ Run focused tests with `pnpm test <file-pattern>` (filters test files) or `pnpm 
 
 - Build uses a separate `tsconfig.build.json` — the root `tsconfig.json` is for development type-checking only
 - Pre-commit hooks run via husky + lint-staged (lints JS/TS, formats everything)
-- TypeScript >= 5.9.3 is a peer dependency
+- TypeScript `^5.9.3 || ^6.0.0` is a peer dependency. TypeScript 7's `typescript` entry point has no JS API; `createProject` throws an actionable error on it
 - To reproduce suppression churn, diff diagnostics between two checkouts of a consumer repo: `git worktree add` at the fork commit, symlink the target's `node_modules` in, run the CLI with `--log-level debug`, and compare.
