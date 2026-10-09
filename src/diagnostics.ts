@@ -1,16 +1,13 @@
-import ts from "typescript";
 import { LogLevels } from "consola";
 import { relative } from "node:path";
 import { logger, styleStderr } from "./logger.js";
-import { buildScopePath } from "./scope.js";
-import { findNodeAtPosition } from "./ast.js";
 import type { Suppression } from "./types.js";
-import type { TsProject } from "./project.js";
+import type { ProjectDiagnostic, TsProject } from "./project.js";
 
 /** A diagnostic paired with its fingerprint. */
 export interface DiagnosticRecord {
   suppression: Suppression;
-  diagnostic: ts.Diagnostic;
+  diagnostic: ProjectDiagnostic;
 }
 
 /**
@@ -45,31 +42,18 @@ export function formatDebugRecord(
  * enables in-memory testing.
  */
 export function collectDiagnostics(project: TsProject, projectRoot: string): DiagnosticRecord[] {
-  const diagnostics = ts.getPreEmitDiagnostics(project.program);
+  const diagnostics = project.getDiagnostics();
   if (logger.level >= LogLevels.debug) {
     logger.debug(`diagnostics: ${diagnostics.length}`);
   }
   const records: DiagnosticRecord[] = [];
 
   for (const diag of diagnostics) {
-    const sourceFile = diag.file;
-    if (!sourceFile) continue;
-
-    const filePath = relative(projectRoot, sourceFile.fileName);
-    const code = diag.code;
-
-    const start = diag.start;
-    let scope = "";
-    if (start != null) {
-      const node = findNodeAtPosition(sourceFile, start);
-      if (node) {
-        scope = buildScopePath(node);
-      }
-    }
+    const filePath = relative(projectRoot, diag.fileName);
+    const { code, scope } = diag;
 
     if (logger.level >= LogLevels.debug) {
-      const rawMessage = ts.flattenDiagnosticMessageText(diag.messageText, "\n");
-      logger.debug(formatDebugRecord(filePath, code, scope, rawMessage));
+      logger.debug(formatDebugRecord(filePath, code, scope, diag.message));
     }
 
     records.push({

@@ -23,7 +23,7 @@ test("each record has a suppression fingerprint and the original diagnostic", ()
     expect(r.suppression.code).toBeTypeOf("number");
     expect(r.suppression.scope).toBeTypeOf("string");
     expect(r.diagnostic.code).toBe(r.suppression.code);
-    expect(r.diagnostic.file).toBeDefined();
+    expect(r.diagnostic.fileName).toBeTypeOf("string");
   }
 });
 

@@ -2,7 +2,7 @@
 import { createRequire } from "node:module";
 import { cac } from "cac";
 import { LogLevels } from "consola";
-import { createProject } from "./project.js";
+import { loadProject, type TsProject } from "./project.js";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runPrune } from "./commands/prune.js";
@@ -36,7 +36,7 @@ function applyLogLevel(options: { logLevel?: string }): void {
  * and exit code 1 instead of an unhandled rejection with a raw Node stack trace.
  * Full stacks are reserved for `--log-level debug`/`trace` to aid diagnosis.
  */
-async function runAction(fn: () => Promise<void>): Promise<void> {
+async function runAction(fn: () => Promise<unknown>): Promise<void> {
   try {
     await fn();
   } catch (e) {
@@ -46,6 +46,18 @@ async function runAction(fn: () => Promise<void>): Promise<void> {
       logger.error(e instanceof Error ? e.message : String(e));
     }
     process.exit(1);
+  }
+}
+
+/** Load the project for the current directory and always release it afterwards. */
+async function withProject<T>(
+  fn: (project: TsProject, projectRoot: string) => Promise<T>,
+): Promise<T> {
+  const { project, projectRoot } = await loadProject(process.cwd());
+  try {
+    return await fn(project, projectRoot);
+  } finally {
+    project.dispose();
   }
 }
 
@@ -75,10 +87,7 @@ cli
   .example("ts-suppress suppress --log-level debug   # Trace each error's scope and message")
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
-    await runAction(async () => {
-      const { project, projectRoot } = createProject(process.cwd());
-      await runSuppress(project, projectRoot);
-    });
+    await runAction(() => withProject(runSuppress));
   });
 
 cli
@@ -89,10 +98,7 @@ cli
   .example("ts-suppress fix      # Same as update")
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
-    await runAction(async () => {
-      const { project, projectRoot } = createProject(process.cwd());
-      await runUpdate(project, projectRoot);
-    });
+    await runAction(() => withProject(runUpdate));
   });
 
 cli
@@ -101,10 +107,7 @@ cli
   .example("ts-suppress prune   # Drop suppressions for errors you have fixed")
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
-    await runAction(async () => {
-      const { project, projectRoot } = createProject(process.cwd());
-      await runPrune(project, projectRoot);
-    });
+    await runAction(() => withProject(runPrune));
   });
 
 cli
@@ -114,8 +117,8 @@ cli
   .action(async (options: { logLevel?: string }) => {
     applyLogLevel(options);
     await runAction(async () => {
-      const { project, projectRoot } = createProject(process.cwd());
-      const { exitCode } = await runCheck(project, projectRoot);
+      // process.exit skips `finally`, so exit only after withProject released the project.
+      const { exitCode } = await withProject(runCheck);
       if (exitCode !== 0) process.exit(exitCode);
     });
   });

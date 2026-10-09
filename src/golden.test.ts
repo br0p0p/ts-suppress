@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { collectDiagnostics } from "./diagnostics.js";
-import { createProject } from "./project.js";
+import { loadProject } from "./project.js";
 import { SUPPRESSIONS_FILENAME, writeSuppressions } from "./suppressions.js";
 
 // Pin the full suppress pipeline against real fixtures: real tsconfig ->
@@ -30,7 +30,7 @@ describe("golden suppressions", () => {
 
   test.each(FIXTURES)("%s fixture pipeline output is stable", async (name) => {
     const fixtureDir = resolve(fixturesRoot, name);
-    const { project, projectRoot } = createProject(fixtureDir);
+    const { project, projectRoot } = await loadProject(fixtureDir);
     const suppressions = collectDiagnostics(project, projectRoot).map((r) => r.suppression);
     await writeSuppressions(tempDir, suppressions);
     const content = await readFile(resolve(tempDir, SUPPRESSIONS_FILENAME), "utf-8");

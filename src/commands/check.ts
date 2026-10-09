@@ -1,6 +1,5 @@
-import ts from "typescript";
 import { LogLevels } from "consola";
-import type { TsProject } from "../project.js";
+import type { ProjectDiagnostic, TsProject } from "../project.js";
 import { collectDiagnostics } from "../diagnostics.js";
 import { logger } from "../logger.js";
 import { readSuppressions, diffSuppressions, describeSuppression } from "../suppressions.js";
@@ -10,14 +9,6 @@ export interface CheckResult {
   exitCode: number;
   unsuppressed: Suppression[];
   stale: Suppression[];
-}
-
-function createFormatHost(projectRoot: string): ts.FormatDiagnosticsHost {
-  return {
-    getCurrentDirectory: () => projectRoot,
-    getCanonicalFileName: (f) => (ts.sys.useCaseSensitiveFileNames ? f : f.toLowerCase()),
-    getNewLine: () => ts.sys.newLine,
-  };
 }
 
 /**
@@ -32,7 +23,7 @@ export async function runCheck(
   const existing = await readSuppressions(suppressionsRoot);
   const records = collectDiagnostics(project, projectRoot);
 
-  const diagnosticBySuppression = new Map<Suppression, ts.Diagnostic>();
+  const diagnosticBySuppression = new Map<Suppression, ProjectDiagnostic>();
   const current: Suppression[] = [];
   for (const r of records) {
     current.push(r.suppression);
@@ -42,7 +33,7 @@ export async function runCheck(
   const { unsuppressed, stale } = diffSuppressions(existing, current);
 
   if (unsuppressed.length > 0) {
-    const diagnostics: ts.Diagnostic[] = [];
+    const diagnostics: ProjectDiagnostic[] = [];
     for (const s of unsuppressed) {
       const d = diagnosticBySuppression.get(s);
       if (!d) {
@@ -51,11 +42,9 @@ export async function runCheck(
       diagnostics.push(d);
     }
     if (logger.level > LogLevels.silent) {
-      const host = createFormatHost(projectRoot);
       const useColor =
         "NO_COLOR" in process.env ? false : !!process.env["FORCE_COLOR"] || !!process.stderr.isTTY;
-      const formatter = useColor ? ts.formatDiagnosticsWithColorAndContext : ts.formatDiagnostics;
-      process.stderr.write(formatter(diagnostics, host));
+      process.stderr.write(project.formatDiagnostics(diagnostics, projectRoot, useColor));
     }
     logger.error(`${unsuppressed.length} unsuppressed error(s)`);
   }
