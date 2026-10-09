@@ -79,6 +79,7 @@ Run focused tests with `pnpm test <file-pattern>` (filters test files) or `pnpm 
 ## Gotchas
 
 - Build uses a separate `tsconfig.build.json` — the root `tsconfig.json` is for development type-checking only
+- Dev toolchain is split across two TypeScript versions: `tsc` (build, typecheck, lint-staged) is TypeScript 7 via the `@typescript/native` alias, while `import ts from "typescript"` resolves to the TypeScript 6 JS API (`@typescript/typescript6`). `tsc6` runs the old checker if needed. CI's extra test leg swaps in TypeScript 5.9 to cover the peer-range floor
 - Pre-commit hooks run via husky + lint-staged (lints JS/TS, formats everything)
 - TypeScript `^5.9.3 || ^6.0.0` is a peer dependency. TypeScript 7's `typescript` entry point has no JS API; `createProject` throws an actionable error on it
 - To reproduce suppression churn, diff diagnostics between two checkouts of a consumer repo: `git worktree add` at the fork commit, symlink the target's `node_modules` in, run the CLI with `--log-level debug`, and compare.
