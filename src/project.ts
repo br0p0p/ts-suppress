@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { dirname, join, relative, isAbsolute } from "node:path";
+import { logger } from "./logger.js";
 
 /** A pre-emit diagnostic located in a source file, with its scope resolved. */
 export interface ProjectDiagnostic {
@@ -88,6 +89,42 @@ export function assertLeafProject(
 export async function loadProject(
   cwd: string,
 ): Promise<{ project: TsProject; projectRoot: string }> {
-  const { createClassicProject } = await import("./backend/classic.js");
-  return createClassicProject(cwd);
+  // On TypeScript 7 the "typescript" entry point is just version info, and the
+  // compiler API lives under `typescript/unstable/*`, which doesn't exist on 5.9
+  // or 6. So each backend is imported only once the version says it can load.
+  const { version } = (await import("typescript")).default;
+  const [major = 0, minor = 0] = version.split(".").map(Number);
+  if (major < 7) {
+    logger.debug(`backend: classic (typescript ${version})`);
+    const { createClassicProject } = await import("./backend/classic.js");
+    return createClassicProject(cwd);
+  }
+  if (major === 7 && minor < 1) {
+    throw new Error(
+      `ts-suppress supports TypeScript 7.1 or later natively, but the installed "typescript" is ${version}.\n` +
+        `Upgrade to TypeScript 7.1+, or keep 7.0 for tsc and point "typescript" at TypeScript 6 in package.json:\n` +
+        `  "typescript": "npm:@typescript/typescript6@^6",\n` +
+        `  "@typescript/native": "npm:typescript@~7.0"`,
+    );
+  }
+  logger.debug(`backend: native (typescript ${version})`);
+  const { createNativeProject } = await import("./backend/native.js");
+  const [sync, is] = await loadNativeModules();
+  return createNativeProject(cwd, sync, is);
+}
+
+type NativeModules = [
+  Parameters<typeof import("./backend/native.js").createNativeProject>[1],
+  Parameters<typeof import("./backend/native.js").createNativeProject>[2],
+];
+
+/**
+ * The consumer's own TypeScript 7 API modules. Specifiers live in variables so
+ * the dev typecheck (where "typescript" is TypeScript 6) doesn't try to resolve
+ * them; backend/native.ts has the real types.
+ */
+async function loadNativeModules(): Promise<NativeModules> {
+  const syncSpecifier = "typescript/unstable/sync";
+  const isSpecifier = "typescript/unstable/ast/is";
+  return Promise.all([import(syncSpecifier), import(isSpecifier)]) as Promise<NativeModules>;
 }

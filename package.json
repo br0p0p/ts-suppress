@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^24",
-    "@typescript/native": "npm:typescript@^7.0.2",
+    "@typescript/native": "npm:typescript@7.1.0-dev.20261008.1",
     "@vitest/coverage-v8": "^3.2.4",
     "fast-check": "^4.7.0",
     "husky": "^9.1.7",
@@ -64,7 +64,7 @@
     "vitest": "^3.2.1"
   },
   "peerDependencies": {
-    "typescript": "^5.9.3 || ^6.0.0"
+    "typescript": "^5.9.3 || ^6.0.0 || ^7.1.0"
   },
   "packageManager": "pnpm@10.32.1"
 }
