@@ -7,11 +7,11 @@ import { buildScopePath, type ScopeAst } from "../scope.js";
 import { assertLeafProject, findTsConfig } from "../project.js";
 import type { ProjectDiagnostic, TsProject } from "../project.js";
 
-export const classicAst: ScopeAst = ts;
+const classicAst: ScopeAst = ts;
 
 /** Wrap a classic ts.Program as a TsProject. */
 export function classicProjectFromProgram(program: ts.Program): TsProject {
-  const original = new Map<ProjectDiagnostic, ts.Diagnostic>();
+  const original = new WeakMap<ProjectDiagnostic, ts.Diagnostic>();
   return {
     getDiagnostics() {
       const result: ProjectDiagnostic[] = [];
