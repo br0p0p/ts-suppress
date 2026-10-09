@@ -22,7 +22,22 @@ yarn add -D ts-suppress
 bun add -d ts-suppress
 ```
 
-> **Note:** TypeScript >= 5.9.3 is a peer dependency.
+> **Note:** TypeScript 5.9 or 6 is a peer dependency.
+
+### Using with TypeScript 7
+
+TypeScript 7's `typescript` package no longer exposes the JS compiler API that ts-suppress reads diagnostics through. Keep TypeScript 7 for `tsc` and point `typescript` at TypeScript 6:
+
+```json
+{
+  "devDependencies": {
+    "typescript": "npm:@typescript/typescript6@^6",
+    "@typescript/native": "npm:typescript@^7"
+  }
+}
+```
+
+`tsc` still runs TypeScript 7 (the TypeScript 6 package only ships a `tsc6` bin). TypeScript 6 and 7 aren't guaranteed to report the identical set of errors, so suppressions captured under 6 can churn once 7 is your checker. Suppression identity is `file + code + scope`, so message-text differences alone don't cause churn.
 
 ## Usage
 

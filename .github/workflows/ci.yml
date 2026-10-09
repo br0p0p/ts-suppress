@@ -44,7 +44,11 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [20, 22, 24]
-    name: Test (Node ${{ matrix.node-version }})
+        typescript: ["5.9"]
+        include:
+          - node-version: 24
+            typescript: "6"
+    name: Test (Node ${{ matrix.node-version }}, TS ${{ matrix.typescript }})
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +60,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Swap in TypeScript 6
+        if: matrix.typescript == '6'
+        run: pnpm add -D --ignore-scripts "typescript@npm:@typescript/typescript6@^6.0.2"
+
+      - name: TypeScript version
+        run: node -p "require('typescript').version"
 
       - name: Test
         run: pnpm test
