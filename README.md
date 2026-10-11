@@ -1,8 +1,26 @@
 # ts-suppress
 
-Incremental TypeScript strictness adoption via bulk error suppression.
+Turn on stricter TypeScript options today and fix the resulting errors at your own pace, without adding a single `@ts-ignore` comment.
 
-Instead of scattering `@ts-ignore` or `@ts-expect-error` comments throughout your codebase, `ts-suppress` captures all TypeScript errors into a single `.ts-suppressions.json` file. This lets you enable stricter compiler options immediately and fix errors at your own pace.
+`ts-suppress` records your project's existing TypeScript errors in one `.ts-suppressions.json` file. CI then fails on any error that isn't in that file, and on any entry whose error you've fixed. New code is held to the stricter rules from day one, and the list of known errors can only get shorter.
+
+## Why ts-suppress
+
+Turning on `"strict": true` (or `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, …) in an existing codebase usually produces hundreds or thousands of errors. The usual workarounds each have a cost:
+
+- **Fix everything first.** The option stays off for weeks while new code keeps adding to the backlog.
+- **Sprinkle `@ts-ignore` / `@ts-expect-error`.** One huge PR that touches every file, merge conflicts on every open branch, noisy `git blame`, and comments that outlive the problem. `@ts-ignore` silences _every_ error on the next line, including ones introduced later. Both comments also hide the error from your editor, so nobody sees the debt where they work.
+- **A separate "strict" tsconfig for opted-in files.** Two configs to keep in sync, and the strict checks only cover files someone remembered to add.
+
+ts-suppress takes a different route:
+
+- **Strict for new code immediately.** Once the option is on, a new error anywhere fails `check`, including in files that already have baselined errors.
+- **No changes to your source.** The baseline lives in one file. There are no comments to review or merge, and no blame churn.
+- **Errors stay visible.** Your editor and `tsc` still show every baselined error, so the remaining work is visible where people write code. Only the CI gate treats them as known.
+- **A ratchet that only tightens.** When you fix an error, `check` fails until the matching entry is removed, so progress gets committed and can't quietly slip back. The entry count is a progress metric you can track (`jq '.suppressions | length' .ts-suppressions.json`).
+- **Stable across unrelated edits.** Entries are keyed by file, error code, and enclosing named scope (e.g. `UserService.validate`). Line numbers and message text aren't part of the key, so adding lines, reformatting, or changing a type that shows up in an error message doesn't invalidate the baseline.
+- **Merge-friendly.** The file is sorted with one entry per line, so concurrent branches rarely conflict and conflicts are easy to resolve.
+- **Uses your real config.** Diagnostics come from the TypeScript compiler API run against your own `tsconfig.json`. ts-suppress doesn't patch `tsc` or parse its output.
 
 ## Install
 
@@ -22,11 +40,108 @@ yarn add -D ts-suppress
 bun add -d ts-suppress
 ```
 
-> **Note:** TypeScript 5.9 or 6 is a peer dependency.
+> **Note:** TypeScript 5.9 or 6 is a peer dependency. For TypeScript 7, see [Using with TypeScript 7](#using-with-typescript-7).
 
-### Using with TypeScript 7
+## Quick start
 
-TypeScript 7's `typescript` package no longer exposes the JS compiler API that ts-suppress reads diagnostics through. Keep TypeScript 7 for `tsc` and point `typescript` at TypeScript 6:
+```bash
+# 1. Turn on the stricter option in tsconfig.json, e.g. "strict": true
+
+# 2. Record every current error as the baseline
+npx ts-suppress suppress
+
+# 3. Commit the baseline
+git add .ts-suppressions.json && git commit -m "chore: baseline strict-mode errors"
+
+# 4. In CI, run this instead of `tsc --noEmit`
+npx ts-suppress check
+```
+
+> **Important:** once the stricter option is on, plain `tsc --noEmit` will fail on the baselined errors. Replace your type-check step with `ts-suppress check`. Any other step that runs `tsc` will fail too: without `noEmitOnError`, `tsc` still writes output, but it exits with code 2 when there are errors. Let build steps tolerate that exit code, or emit with a tool that doesn't type-check (esbuild, swc, tsup, …).
+
+## Day-to-day workflow
+
+| Situation                                                                         | Run                    |
+| --------------------------------------------------------------------------------- | ---------------------- |
+| You fixed some errors and `check` reports **stale suppressions**                  | `ts-suppress prune`    |
+| You deliberately accept new errors (another strict flag, a TypeScript upgrade, …) | `ts-suppress update`   |
+| You want to throw the baseline away and re-record it from scratch                 | `ts-suppress suppress` |
+| CI / pre-push                                                                     | `ts-suppress check`    |
+
+Prefer `prune` after fixing errors. It only removes entries, so any new error you introduced along the way keeps failing `check`. `update` also removes fixed entries, but it adds every new error to the baseline as well, which can hide a regression in the same diff. If `update` adds entries, look over the change to `.ts-suppressions.json` in review.
+
+## Commands
+
+| Command                 | What it does                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init`                  | Writes an empty `.ts-suppressions.json` to the **current directory**, **overwriting** any existing baseline. If a `.prettierignore` or `.oxfmtignore` exists, asks whether to add the file to it (`--ignore` adds without asking). |
+| `suppress`              | Records every current error. **Overwrites** any existing file. Doesn't need `init` first.                                                                                                                                          |
+| `check`                 | Compares current errors against the file. Prints unsuppressed errors in `tsc` format and lists stale entries, all on stderr. Exits `1` if either list is non-empty.                                                                |
+| `prune`                 | Removes stale entries. Never adds new ones.                                                                                                                                                                                        |
+| `update` (alias: `fix`) | Adds new errors and removes stale entries in one pass.                                                                                                                                                                             |
+
+`suppress`, `check`, `update`, and `prune` exit `1` with a short message on a missing or invalid `tsconfig.json` or a solution-style root ([see below](#monorepos-and-project-references)). `check`, `update`, and `prune` also exit `1` on a corrupt suppression file. `suppress` never reads the existing file, so it can rebuild a corrupt one.
+
+Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to print each error's file, scope, and full message when a suppression doesn't match the error you expected. `update` and `prune` also list each added or removed entry at that level.
+
+### Keep the formatter away from the file
+
+Prettier and oxfmt expand the one-entry-per-line layout, which makes diffs and merges noisier. Add `.ts-suppressions.json` to your formatter's ignore file (`.prettierignore`, `.oxfmtignore`, …) by hand. On a fresh project you can instead run `ts-suppress init --ignore` **before** `suppress`, which does this for you. Don't run `init` once a baseline exists: it replaces the baseline with an empty file.
+
+## How it works
+
+Each entry identifies one error by three fields:
+
+```json
+{ "file": "src/api.ts", "code": 2322, "scope": "UserService.validate" }
+```
+
+- **file**: path relative to the directory containing `tsconfig.json`
+- **code**: the TypeScript error code (`2322` is TS2322)
+- **scope**: the dot-path of named declarations enclosing the error, or `""` at module level
+
+### What counts as a scope
+
+| Declaration                                                                                                       | Scope segment                                     |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `function processData()`                                                                                          | `processData`                                     |
+| `class UserService`, `interface User`, `type Id = …`, `enum Role`, `namespace Api`                                | the declared name                                 |
+| Method / constructor / getter / setter                                                                            | `validate`, `constructor`, `get:name`, `set:name` |
+| `const handler = () => …`, `= function …`, `= class …`, `= { … }`                                                 | `handler`                                         |
+| A call wrapping one of those, e.g. `const onClick = useCallback(() => …)` or `const Button = memo(forwardRef(…))` | `onClick`, `Button`                               |
+| Object or class property holding one of those (`{ handler: () => … }`)                                            | `handler`                                         |
+
+Blocks (`if`, `for`, …), anonymous functions, and variables holding plain values (`const n = 5`) don't add a segment. An error inside them belongs to the nearest enclosing named scope.
+
+### Matching
+
+`check` counts entries per `file + code + scope`. If a scope has three TS2322 errors, the file holds three identical entries. Fix one and `check` reports one stale entry. Add a fourth and `check` reports one unsuppressed error.
+
+### Tradeoffs
+
+Keying on scope rather than line or message is what makes the baseline stable, and it has a cost. Within one scope, errors of the same code are interchangeable. If you fix one TS2322 in `UserService.validate` and introduce a different TS2322 in the same method, the count stays the same and `check` passes. Module-level code shares the `""` scope, so this applies to every module-level error of one code in one file. Large functions and module-level code are where this matters most, so they're good candidates to fix first.
+
+Renaming or moving a declaration changes the scope of the errors inside it. `check` then reports them as unsuppressed, plus the old entries as stale. If the errors are the same, run `update` to re-key them.
+
+### Schema version
+
+The file carries a `"version"` field. If a future release changes how scopes are computed, the new CLI warns when it reads an older file. Run `ts-suppress update` to re-key it. If the entry format itself changes and the CLI can't read the file, `ts-suppress suppress` rebuilds it from scratch. Files written before the field existed are still accepted.
+
+## Monorepos and project references
+
+Every command uses the nearest `tsconfig.json` at or above the current directory. Each package keeps its own `.ts-suppressions.json` next to its `tsconfig.json`, so run ts-suppress once per package:
+
+```bash
+for pkg in packages/*; do (cd "$pkg" && npx ts-suppress check) || exit 1; done
+```
+
+ts-suppress refuses to run against a solution-style root, meaning a `tsconfig.json` whose input files all belong to its `references` (including the `"files": []` form). Such a root either checks nothing or checks the packages' sources under the root's compiler options rather than each package's own. Both give a clean result that means nothing. A package with its own sources that also lists `references` to its dependencies is a normal composite project and works fine.
+
+The config file must be named `tsconfig.json`. There's no option to point at a different file.
+
+## Using with TypeScript 7
+
+TypeScript 7's `typescript` package no longer exposes the JS compiler API that ts-suppress uses. Keep TypeScript 7 for `tsc` and point `typescript` at TypeScript 6:
 
 ```json
 {
@@ -37,97 +152,23 @@ TypeScript 7's `typescript` package no longer exposes the JS compiler API that t
 }
 ```
 
-`tsc` still runs TypeScript 7 (the TypeScript 6 package only ships a `tsc6` bin). TypeScript 6 and 7 aren't guaranteed to report the identical set of errors, so suppressions captured under 6 can churn once 7 is your checker. Suppression identity is `file + code + scope`, so message-text differences alone don't cause churn.
-
-## Usage
-
-```bash
-# Create an empty .ts-suppressions.json
-npx ts-suppress init
-
-# Snapshot all current TypeScript errors
-npx ts-suppress suppress
-
-# Verify all errors are suppressed and no suppressions are stale (useful in CI)
-npx ts-suppress check
-
-# Add new suppressions and remove stale ones in a single pass
-npx ts-suppress update
-
-# Remove stale suppressions only, leaving new errors unsuppressed
-npx ts-suppress prune
-```
-
-Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to trace each diagnostic's scope and raw message — handy when investigating why a suppression didn't match the error you expected.
-
-## Typical Workflow
-
-1. Enable a stricter TypeScript option (e.g. `"strict": true`)
-2. Run `npx ts-suppress suppress` to baseline all existing errors
-3. Commit `.ts-suppressions.json`
-4. Add `npx ts-suppress check` to CI
-5. Fix errors over time — `check` will flag stale suppressions as you go
-6. Run `npx ts-suppress update` to sync the suppression file after fixing errors
-
-Use `prune` instead of `update` when you want the suppression file to shrink but never grow. It clears out entries for errors you fixed and leaves any new errors unsuppressed, so `check` keeps failing on them.
-
-## How It Works
-
-A suppression's identity is `file + code + scope`:
-
-- **file** — relative path to the source file
-- **code** — TypeScript error code (e.g. `2322`)
-- **scope** — the dot-path of the enclosing named AST node (e.g. `MyClass.myMethod`), empty string for module-level code
-
-Example `.ts-suppressions.json` entry:
-
-```json
-{ "file": "src/api.ts", "code": 2322, "scope": "MyClass.myMethod" }
-```
-
-The file also carries a `version` field naming the schema it was written under. If a newer release changes how scopes are computed, an older CLI reading the file prints a warning and keeps going, so you can regenerate with `ts-suppress update` on your own schedule. Entries still have to match the shape this CLI understands, so if a future schema changes that shape the older CLI warns about the version and then rejects the file. `update`, `prune`, and `check` all read the file first, so they can't recover from that; run `ts-suppress suppress` to rebuild the baseline from current diagnostics. Files written before the field existed have no version and are accepted as-is.
-
-Suppressions with the same `file + code + scope` are matched by occurrence count, not deduplicated. If a scope has N errors of one code, the file holds N identical entries; fix one and `check` reports the remaining N−1 as still-unsuppressed.
-
-**Tradeoff:** because identity is anchored to the enclosing named node rather than the error message, suppressions are sticky — they survive refactors that don't move or rename that node, even if the error's wording changes. The flip side is that the tool can't tell when an error morphs into a different error of the same code inside the same scope: if you fix the original problem but introduce a new TS2322 in the same method, it stays silently suppressed. Module-level errors (outside any named function, class, or block) all share the empty `""` scope, so distinct module-level errors of the same code are indistinguishable from each other.
-
-The `check` command diffs the current diagnostics against the suppression file and reports:
-
-- **Unsuppressed errors** — new errors not yet in the suppression file
-- **Stale suppressions** — entries that no longer match any current error (i.e. errors that have been fixed)
-
-`check` exits `0` when both lists are empty and `1` otherwise, so it plugs directly into CI.
-
-## Monorepos and project references
-
-Every command reads the nearest `tsconfig.json` above the current directory, so run ts-suppress from the package you want to check. Each package keeps its own `.ts-suppressions.json`.
-
-ts-suppress refuses to run against a solution-style root — a `tsconfig.json` whose every input file belongs to one of its `references`, including the `"files": []` form. Such a root either checks nothing at all or checks its packages' sources under the root's compiler options rather than each package's own, and both produce a clean report that means nothing. Run the tool once per package instead:
-
-```bash
-for pkg in packages/*; do (cd "$pkg" && ts-suppress check); done
-```
-
-A package that has sources of its own and also lists `references` for its dependencies is a normal composite project, and works as expected.
+`tsc` still runs TypeScript 7 (the TypeScript 6 package only ships a `tsc6` bin). TypeScript 6 and 7 can report slightly different errors, so a baseline recorded under 6 may need an `update` once 7 is your checker. Message wording isn't part of the key, so wording changes alone don't cause churn.
 
 ## Comparison with ts-bulk-suppress
 
-ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok and shares the same core idea: capture TypeScript errors into an external file instead of scattering `@ts-ignore` comments. The two tools take different approaches to the problem.
+ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-suppress) by TikTok, and the core idea is the same: record TypeScript errors in a file keyed by file, code, and AST scope instead of commenting them in place.
 
-|                          | ts-suppress                                                       | ts-bulk-suppress                                                      |
-| ------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Suppression file**     | Single `.ts-suppressions.json`                                    | `.ts-bulk-suppressions.json`                                          |
-| **Error identification** | file + error code + scope                                         | file + error code + scope                                             |
-| **tsc integration**      | Standalone — reads diagnostics via TypeScript compiler API        | Wraps/intercepts tsc output                                           |
-| **CLI interface**        | Separate commands: `init`, `suppress`, `check`, `update`, `prune` | Flag-based: `--gen-bulk-suppress`, `--changed`                        |
-| **Runtime dependencies** | 2 (cac, consola) + TypeScript as peer dep                         | 37 packages                                                           |
-| **Maintenance**          | Actively maintained                                               | [Last published 2024](https://www.npmjs.com/package/ts-bulk-suppress) |
+|                         | ts-suppress                                                 | ts-bulk-suppress                                                 |
+| ----------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Suppression file**    | `.ts-suppressions.json`                                     | `.ts-bulk-suppressions.json`                                     |
+| **Error identity**      | file + code + scope                                         | file + code + scope (`--strict-scope` for deeper scope IDs)      |
+| **Pattern suppression** | No, every entry is one error                                | Yes: path regex + codes, or suppress everything                  |
+| **Changed files only**  | No                                                          | `--changed` against a target branch                              |
+| **CLI interface**       | Subcommands: `init`, `suppress`, `check`, `update`, `prune` | Flags: `--create-default`, `--gen-bulk-suppress`, `--changed`, … |
+| **Runtime deps**        | 2 (cac, consola), TypeScript as a peer                      | Includes ts-morph                                                |
+| **Last release**        | See [npm](https://www.npmjs.com/package/ts-suppress)        | See [npm](https://www.npmjs.com/package/ts-bulk-suppress)        |
 
-### Key differences
-
-- **AST-anchored scope** — Each suppression's scope is the dot-path of the enclosing named AST node, computed by walking the tree rather than parsing tsc's text output. See [How It Works](#how-it-works) for the tradeoffs this brings.
-- **No tsc patching** — ts-suppress uses the TypeScript compiler API directly to collect diagnostics rather than wrapping or intercepting tsc. This avoids coupling to tsc's output format.
-- **Explicit CLI commands** — Each operation (`init`, `suppress`, `check`, `update`, `prune`) is a separate command rather than a flag, making the workflow easier to script and understand.
+Choose ts-suppress if you want a small, explicit workflow where `check` enforces that the baseline only shrinks. Choose ts-bulk-suppress if you need pattern-based suppression (e.g. "ignore everything under `legacy/`") or a changed-files-only mode.
 
 ## Acknowledgements
 

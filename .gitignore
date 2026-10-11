@@ -1,4 +1,5 @@
-# dependencies (bun install)
+# dependencies
+.pnpm-store
 node_modules
 
 # output
