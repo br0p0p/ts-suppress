@@ -57,7 +57,7 @@ git add .ts-suppressions.json && git commit -m "chore: baseline strict-mode erro
 npx ts-suppress check
 ```
 
-> **Important:** once the stricter option is on, plain `tsc --noEmit` will fail on the baselined errors. Replace your type-check step with `ts-suppress check`. Builds that emit with `tsc` still emit by default, unless you've set `noEmitOnError`.
+> **Important:** once the stricter option is on, plain `tsc --noEmit` will fail on the baselined errors. Replace your type-check step with `ts-suppress check`. Any other step that runs `tsc` will fail too: without `noEmitOnError`, `tsc` still writes output, but it exits with code 2 when there are errors. Let build steps tolerate that exit code, or emit with a tool that doesn't type-check (esbuild, swc, tsup, …).
 
 ## Day-to-day workflow
 
@@ -72,21 +72,21 @@ Prefer `prune` after fixing errors. It only removes entries, so any new error yo
 
 ## Commands
 
-| Command                 | What it does                                                                                                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `init`                  | Writes an empty `.ts-suppressions.json` to the **current directory**. If a `.prettierignore` or `.oxfmtignore` exists, asks whether to add the file to it (`--ignore` adds without asking). |
-| `suppress`              | Records every current error. **Overwrites** any existing file. Doesn't need `init` first.                                                                                                   |
-| `check`                 | Compares current errors against the file. Prints unsuppressed errors in `tsc` format and lists stale entries, all on stderr. Exits `1` if either list is non-empty.                         |
-| `prune`                 | Removes stale entries. Never adds new ones.                                                                                                                                                 |
-| `update` (alias: `fix`) | Adds new errors and removes stale entries in one pass.                                                                                                                                      |
+| Command                 | What it does                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init`                  | Writes an empty `.ts-suppressions.json` to the **current directory**, **overwriting** any existing baseline. If a `.prettierignore` or `.oxfmtignore` exists, asks whether to add the file to it (`--ignore` adds without asking). |
+| `suppress`              | Records every current error. **Overwrites** any existing file. Doesn't need `init` first.                                                                                                                                          |
+| `check`                 | Compares current errors against the file. Prints unsuppressed errors in `tsc` format and lists stale entries, all on stderr. Exits `1` if either list is non-empty.                                                                |
+| `prune`                 | Removes stale entries. Never adds new ones.                                                                                                                                                                                        |
+| `update` (alias: `fix`) | Adds new errors and removes stale entries in one pass.                                                                                                                                                                             |
 
-All commands exit `1` with a short message on a missing or invalid `tsconfig.json`, a corrupt suppression file, or a solution-style root ([see below](#monorepos-and-project-references)).
+`suppress`, `check`, `update`, and `prune` exit `1` with a short message on a missing or invalid `tsconfig.json` or a solution-style root ([see below](#monorepos-and-project-references)). `check`, `update`, and `prune` also exit `1` on a corrupt suppression file. `suppress` never reads the existing file, so it can rebuild a corrupt one.
 
 Every command accepts `--log-level <level>` (`silent`, `error`, `warn`, `log`, `info` (default), `debug`, `trace`, `verbose`). Use `--log-level debug` to print each error's file, scope, and full message when a suppression doesn't match the error you expected. `update` and `prune` also list each added or removed entry at that level.
 
 ### Keep the formatter away from the file
 
-Prettier and oxfmt expand the one-entry-per-line layout, which makes diffs and merges noisier. `ts-suppress init --ignore` adds `.ts-suppressions.json` to any `.prettierignore` / `.oxfmtignore` it finds. For other formatters, add the file to their ignore list by hand.
+Prettier and oxfmt expand the one-entry-per-line layout, which makes diffs and merges noisier. Add `.ts-suppressions.json` to your formatter's ignore file (`.prettierignore`, `.oxfmtignore`, …) by hand. On a fresh project you can instead run `ts-suppress init --ignore` **before** `suppress`, which does this for you. Don't run `init` once a baseline exists: it replaces the baseline with an empty file.
 
 ## How it works
 
@@ -166,7 +166,7 @@ ts-suppress is inspired by [ts-bulk-suppress](https://github.com/tiktok/ts-bulk-
 | **Changed files only**  | No                                                          | `--changed` against a target branch                              |
 | **CLI interface**       | Subcommands: `init`, `suppress`, `check`, `update`, `prune` | Flags: `--create-default`, `--gen-bulk-suppress`, `--changed`, … |
 | **Runtime deps**        | 2 (cac, consola), TypeScript as a peer                      | Includes ts-morph                                                |
-| **Last release**        | See [npm](https://www.npmjs.com/package/ts-suppress)        | [2024](https://www.npmjs.com/package/ts-bulk-suppress)           |
+| **Last release**        | See [npm](https://www.npmjs.com/package/ts-suppress)        | See [npm](https://www.npmjs.com/package/ts-bulk-suppress)        |
 
 Choose ts-suppress if you want a small, explicit workflow where `check` enforces that the baseline only shrinks. Choose ts-bulk-suppress if you need pattern-based suppression (e.g. "ignore everything under `legacy/`") or a changed-files-only mode.
 

@@ -19,13 +19,13 @@ Baselined errors still show in the editor and in plain `tsc` output. That's expe
 
 ## Commands
 
-| Command                | Description                                                                                                                 |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `ts-suppress init`     | Create an empty `.ts-suppressions.json` in the current directory (`--ignore` adds it to `.prettierignore` / `.oxfmtignore`) |
-| `ts-suppress suppress` | Record every current error, **overwriting** the existing file                                                               |
-| `ts-suppress check`    | Exit 1 on unsuppressed errors (printed in `tsc` format) or stale entries. Use in CI                                         |
-| `ts-suppress prune`    | Remove stale entries only. Never adds                                                                                       |
-| `ts-suppress update`   | Add new errors and remove stale entries (alias: `fix`)                                                                      |
+| Command                | Description                                                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ts-suppress init`     | Create an empty `.ts-suppressions.json` in the current directory, **overwriting** any existing baseline. Never run it once a baseline exists (`--ignore` adds it to `.prettierignore` / `.oxfmtignore`) |
+| `ts-suppress suppress` | Record every current error, **overwriting** the existing file                                                                                                                                           |
+| `ts-suppress check`    | Exit 1 on unsuppressed errors (printed in `tsc` format) or stale entries. Use in CI                                                                                                                     |
+| `ts-suppress prune`    | Remove stale entries only. Never adds                                                                                                                                                                   |
+| `ts-suppress update`   | Add new errors and remove stale entries (alias: `fix`)                                                                                                                                                  |
 
 **Flags:** `--log-level <level>` on every command (`debug` prints each error's file, scope, and message; `update`/`prune` list each added or removed entry), `--help` / `-h`, `--version` / `-v`
 
