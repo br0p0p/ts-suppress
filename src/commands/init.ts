@@ -35,7 +35,16 @@ export async function runInit(ignore?: boolean) {
     return;
   }
 
-  // Interactive mode: prompt per file
+  // Interactive mode: prompt per file. With no TTY (CI, piped, or closed stdin),
+  // rl.question resolves to "" on EOF and the "!== 'n'" check would auto-confirm
+  // a file mutation without real input. Bail to a deterministic, non-mutating tip.
+  if (!process.stdin.isTTY) {
+    logger.log(
+      `\nTip: re-run with --ignore to add ${SUPPRESSIONS_FILENAME} to detected ignore files (${detected.join(", ")}).`,
+    );
+    return;
+  }
+
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     for (const file of detected) {
