@@ -30,10 +30,9 @@ src/
   project.ts           # Backend-neutral TsProject interface, tsconfig discovery, leaf-project guard, loadProject()
   backend/
     classic.ts         # TsProject over the TypeScript 5.9/6 JS API (the only module importing `typescript` at runtime)
-  diagnostics.ts       # Collects TS pre-emit diagnostics, fingerprints errors
+  diagnostics.ts       # Maps TS pre-emit diagnostics to file+code+scope suppressions
   suppressions.ts      # Reads/writes .ts-suppressions.json, diff logic
   scope.ts             # AST traversal for dot-separated scope chains, over an injected ScopeAst adapter
-  hash.ts              # SHA256 hashing of diagnostic messages
   ignore.ts            # Detects/updates formatter ignore files (.prettierignore, .oxfmtignore)
   logger.ts            # consola-backed logger; setLogLevel() drives --log-level
   types.ts             # Shared interfaces (Suppression, SuppressionFile)
@@ -45,7 +44,7 @@ src/
 
 - **typescript** (peer) — Compiler API for diagnostics and AST traversal. Only `src/backend/*` touches it at runtime; everything else consumes `TsProject` / `ProjectDiagnostic` from `project.ts`, and `scope.ts`/`ast.ts` take the AST predicates as a `ScopeAst` adapter
 - **cac** — CLI argument parsing. Don't use `commander`, `yargs`, `gunshi`, or `mri`.
-- **consola** — Logging. Wired through `src/logger.ts` with a custom plain reporter (no `[log]` / ERROR-badge decoration) so default-level output stays byte-identical to plain `console.*` calls. `--log-level debug` traces hash transformation in `diagnostics.ts`.
+- **consola** — Logging. Wired through `src/logger.ts` with a custom plain reporter (no `[log]` / ERROR-badge decoration) so default-level output stays byte-identical to plain `console.*` calls. `--log-level debug` prints each diagnostic's file, scope, and raw message from `diagnostics.ts`.
 
 ## Code Style
 

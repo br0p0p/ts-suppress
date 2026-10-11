@@ -70,7 +70,7 @@ cli
   .command("init", "Create an empty .ts-suppressions.json file")
   .option(
     "--ignore",
-    "Add .ts-suppressions.json to formatter ignore files (Prettier, oxfmt, Biome)",
+    "Add .ts-suppressions.json to formatter ignore files (.prettierignore, .oxfmtignore)",
   )
   .option(...LOG_LEVEL_FLAG)
   .example("ts-suppress init")
