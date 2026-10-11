@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.2.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v2.1.0...ts-suppress-v2.2.0) (2026-10-11)
+
+
+### Features
+
+* accept TypeScript 6 and fail clearly on TypeScript 7 ([#57](https://github.com/br0p0p/ts-suppress/issues/57)) ([0589fc5](https://github.com/br0p0p/ts-suppress/commit/0589fc5c3020cb2d47744b925fbf388ff77baf5a))
+* **suppressions:** version the schema, validate reads, write atomically ([#51](https://github.com/br0p0p/ts-suppress/issues/51)) ([1e83684](https://github.com/br0p0p/ts-suppress/commit/1e8368405bc2752caad5c01e17d12e82b2fc7ff2))
+
+
+### Bug Fixes
+
+* **project:** guard solution-style tsconfigs and report all config errors ([#28](https://github.com/br0p0p/ts-suppress/issues/28)) ([373de31](https://github.com/br0p0p/ts-suppress/commit/373de31c9ec8d1bfa92879c5c6e88c775959d631))
+
+
+### Documentation
+
+* explain the benefits and correct inaccurate claims ([#62](https://github.com/br0p0p/ts-suppress/issues/62)) ([f5c7b70](https://github.com/br0p0p/ts-suppress/commit/f5c7b709dba5b29bd218016d0989a07ae20f7387))
+
+
+### Refactoring
+
+* put the TypeScript API behind a backend-neutral TsProject ([#59](https://github.com/br0p0p/ts-suppress/issues/59)) ([5ca5de4](https://github.com/br0p0p/ts-suppress/commit/5ca5de4ae665520c75f867d31958939f6cee39ce))
+
 ## [2.1.0](https://github.com/br0p0p/ts-suppress/compare/ts-suppress-v2.0.0...ts-suppress-v2.1.0) (2026-08-21)
 
 
